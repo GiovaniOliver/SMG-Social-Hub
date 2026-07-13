@@ -1,0 +1,22 @@
+   [1m[38;2;173;127;168m▲ Next.js 15.5.15[39m[22m
+   - Local:        http://localhost:3010
+   - Network:      http://192.168.1.32:3010
+   - Environments: .env.local, .env
+
+ [32m[1m✓[22m[39m Starting...
+ [32m[1m✓[22m[39m Ready in 1411ms
+ [32m[1m✓[22m[39m Compiled /middleware in 122ms (115 modules)
+ [37m[1m○[22m[39m Compiling /login ...
+ [32m[1m✓[22m[39m Compiled /login in 1132ms (567 modules)
+ [32m[1m✓[22m[39m Compiled in 368ms (243 modules)
+ GET /login [32m200[39m in 59ms
+ [32m[1m✓[22m[39m Compiled /api/auth/login in 240ms (584 modules)
+ POST /api/auth/login [33m400[39m in 318ms
+ POST /api/auth/login [32m200[39m in 12ms
+ [32m[1m✓[22m[39m Compiled / in 330ms (734 modules)
+ GET / [32m200[39m in 614ms
+ [32m[1m✓[22m[39m Compiled /api/brands in 114ms (737 modules)
+ GET /api/brands [32m200[39m in 152ms
+ [32m[1m✓[22m[39m Compiled /api/cron in 155ms (750 modules)
+ GET /api/cron [33m401[39m in 189ms
+ GET /api/cron?secret=f29457580427167122d07efca23c1620 [32m200[39m in 43ms

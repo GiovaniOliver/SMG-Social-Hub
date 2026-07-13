@@ -1,0 +1,36 @@
+import { NextRequest } from 'next/server'
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const brandId = searchParams.get('brandId')
+
+  if (!brandId) {
+    return Response.json({ success: false, error: 'brandId is required' }, { status: 400 })
+  }
+
+  const clientId = process.env.LINKEDIN_CLIENT_ID
+  const redirectUri = process.env.LINKEDIN_REDIRECT_URI
+
+  if (!clientId || !redirectUri) {
+    return Response.json(
+      { success: false, error: 'LinkedIn OAuth is not configured. Set LINKEDIN_CLIENT_ID and LINKEDIN_REDIRECT_URI.' },
+      { status: 500 }
+    )
+  }
+
+  const scopes = ['openid', 'profile', 'email', 'w_member_social'].join(' ')
+
+  const state = Buffer.from(JSON.stringify({ brandId, ts: Date.now() })).toString('base64url')
+
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    scope: scopes,
+    state,
+  })
+
+  const authUrl = `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`
+
+  return Response.redirect(authUrl)
+}

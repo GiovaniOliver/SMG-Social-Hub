@@ -1,0 +1,1775 @@
+[
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd '/c/Users/OliverProductions/Desktop/2.DEVELOPMENT Work/SMG-Social-Hub' && npm run build 2>&1 | tail -8; echo \"BUILD_EXIT: ${PIPESTATUS[0]}\"",
+      "timeout": 300000,
+      "description": "Production build after Claude migration"
+    },
+    "tool_response": {
+      "stdout": "  \u00e2\u201d\u0153 chunks/255-4f212684648fcab9.js         46 kB\n  \u00e2\u201d\u0153 chunks/4bd1b696-c023c6e3521b1417.js  54.2 kB\n  \u00e2\u201d\u201d other shared chunks (total)          1.99 kB\n\n\n\u00e2\u2014\u2039  (Static)   prerendered as static content\n\u00c6\u2019  (Dynamic)  server-rendered on demand\n\nBUILD_EXIT: 0",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false,
+      "noOutputExpected": false
+    },
+    "tool_use_id": "toolu_01YXrShKd49XdfxUueJUjSgx",
+    "duration_ms": 19030
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "af5fb5e19db2e26a5",
+    "agent_type": "everything-claude-code:security-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\brands\\[id]\\route.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\brands\\[id]\\route.ts",
+        "content": "import { NextRequest } from 'next/server'\nimport { z } from 'zod'\nimport { prisma } from '@/lib/db'\nimport { getBrandById } from '@/lib/brands'\n\nconst UpdateBrandSchema = z.object({\n  name: z.string().min(1).max(100).optional(),\n  description: z.string().max(500).nullable().optional(),\n  logoUrl: z.string().url().nullable().optional(),\n  isActive: z.boolean().optional(),\n  voice: z\n    .object({\n      tone: z.string(),\n      personality: z.string(),\n      avoid: z.array(z.string()),\n      cta: z.string().optional(),\n    })\n    .optional(),\n  context: z\n    .object({\n      products: z.array(z.string()),\n      faqs: z.array(z.object({ q: z.string(), a: z.string() })),\n      targetAudience: z.array(z.string()),\n      keyMessages: z.array(z.string()),\n    })\n    .optional(),\n})\n\ntype RouteContext = { params: Promise<{ id: string }> }\n\nexport async function GET(\n  _request: NextRequest,\n  { params }: RouteContext\n) {\n  const { id } = await params\n  try {\n    const brand = await getBrandById(id)\n    if (!brand) {\n      return Response.json({ success: false, error: 'Brand not found' }, { status: 404 })\n    }\n    return Response.json({ success: true, data: brand })\n  } catch (error) {\n    const message = error instanceof Error ? error.message : 'Failed to fetch brand'\n    return Response.json({ success: false, error: message }, { status: 500 })\n  }\n}\n\nexport async function PATCH(\n  request: NextRequest,\n  { params }: RouteContext\n) {\n  const { id } = await params\n  try {\n    const body = await request.json()\n    const validated = UpdateBrandSchema.safeParse(body)\n\n    if (!validated.success) {\n      return Response.json(\n        { success: false, error: validated.error.flatten().fieldErrors },\n        { status: 400 }\n      )\n    }\n\n    const { voice, context, ...rest } = validated.data\n\n    const existing = await prisma.brand.findUnique({ where: { id } })\n    if (!existing) {\n      return Response.json({ success: false, error: 'Brand not found' }, { status: 404 })\n    }\n\n    const updated = await prisma.brand.update({\n      where: { id },\n      data: {\n        ...rest,\n        ...(voice !== undefined ? { voice: JSON.stringify(voice) } : {}),\n        ...(context !== undefined ? { context: JSON.stringify(context) } : {}),\n      },\n    })\n\n    return Response.json({ success: true, data: updated })\n  } catch (error) {\n    const message = error instanceof Error ? error.message : 'Failed to update brand'\n    return Response.json({ success: false, error: message }, { status: 500 })\n  }\n}\n\nexport async function DELETE(\n  _request: NextRequest,\n  { params }: RouteContext\n) {\n  const { id } = await params\n  try {\n    const existing = await prisma.brand.findUnique({ where: { id } })\n    if (!existing) {\n      return Response.json({ success: false, error: 'Brand not found' }, { status: 404 })\n    }\n\n    await prisma.brand.delete({ where: { id } })\n    return Response.json({ success: true, data: { deleted: true } })\n  } catch (error) {\n    const message = error instanceof Error ? error.message : 'Failed to delete brand'\n    return Response.json({ success: false, error: message }, { status: 500 })\n  }\n}\n",
+        "numLines": 105,
+        "startLine": 1,
+        "totalLines": 105
+      }
+    },
+    "tool_use_id": "toolu_01VbwocS6ZBHA4yVfkAVBab2",
+    "duration_ms": 0
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "ab271c4fac06c3966",
+    "agent_type": "everything-claude-code:code-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Grep",
+    "tool_input": {
+      "pattern": "PUBLISHING",
+      "path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src",
+      "output_mode": "content",
+      "-n": true
+    },
+    "tool_response": {
+      "mode": "content",
+      "numFiles": 0,
+      "filenames": [],
+      "content": "src\\types\\index.ts:30:export type PostStatus = 'PENDING' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'CANCELLED'\nsrc\\components\\status-badge.tsx:18:  PUBLISHING: {\nsrc\\components\\status-badge.tsx:53:          status === 'PUBLISHING' ? 'animate-pulse bg-blue-400' : `bg-current`\nsrc\\app\\(dashboard)\\page.tsx:63:    PUBLISHING: 'badge-pending',\nsrc\\lib\\scheduler.ts:54:      data: { status: 'PUBLISHING' },\nsrc\\app\\api\\publish\\route.ts:56:      data: { status: 'PUBLISHING' },",
+      "numLines": 6
+    },
+    "tool_use_id": "toolu_01H2pFAqBcDHiyQRdiUzKwh7",
+    "duration_ms": 58
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "a06d11128fcdd95f7",
+    "agent_type": "general-purpose",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\(dashboard)\\comments\\[id]\\page.tsx",
+      "offset": 1,
+      "limit": 120
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\(dashboard)\\comments\\[id]\\page.tsx",
+        "content": "'use client'\n\nimport { useState, useEffect, useCallback } from 'react'\nimport { useParams, useRouter } from 'next/navigation'\nimport Link from 'next/link'\nimport {\n  ArrowLeft,\n  Sparkles,\n  CheckCircle2,\n  RefreshCw,\n  SkipForward,\n  ExternalLink,\n  ChevronDown,\n  ChevronRight,\n  AlertTriangle,\n  User,\n  Building2,\n  Globe,\n  Lock,\n} from 'lucide-react'\nimport { PlatformBadge } from '@/components/platform-badge'\nimport { CopyToClipboard } from '@/components/copy-to-clipboard'\nimport { RiskBadge } from '@/components/risk-badge'\nimport type { Platform, CommentStatus, BrandVoice } from '@/types'\nimport { PLATFORM_LABELS } from '@/types'\n\n// ---------- Types ----------\n\ninterface CommentDraft {\n  id: string\n  opportunityId: string\n  content: string\n  isApproved: boolean\n  createdAt: string\n}\n\ninterface Opportunity {\n  id: string\n  brandId: string\n  brand: {\n    name: string\n    voice: string\n    context: string\n  }\n  platform: string\n  postUrl: string\n  postTitle: string | null\n  postContent: string | null\n  commentId: string | null\n  commentText: string | null\n  authorName: string | null\n  authorHandle: string | null\n  isOwned: boolean\n  relevanceNote: string | null\n  status: CommentStatus\n  approvedReply: string | null\n  postedAt: string | null\n  discoveredAt: string\n  updatedAt: string\n  drafts: CommentDraft[]\n}\n\ninterface RiskAssessment {\n  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH'\n  flags: string[]\n  requiresHumanReview: boolean\n}\n\ninterface GeneratedDraft {\n  id: string\n  content: string\n  reasoning: string\n  warnings?: string[]\n}\n\n// ---------- Status Badge ----------\n\nconst STATUS_CONFIG: Record<CommentStatus, { label: string; classes: string }> = {\n  PENDING: { label: 'Pending', classes: 'badge-pending' },\n  DRAFT_READY: { label: 'Draft Ready', classes: 'badge-draft' },\n  APPROVED: { label: 'Approved', classes: 'bg-purple-900 text-purple-300 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium' },\n  POSTED: { label: 'Posted', classes: 'badge-published' },\n  SKIPPED: { label: 'Skipped', classes: 'badge-skipped' },\n}\n\nfunction StatusBadge({ status }: { status: CommentStatus }) {\n  const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.PENDING\n  return <span className={config.classes}>{config.label}</span>\n}\n\n// ---------- Character counter ----------\n\nfunction CharCounter({ text, limit }: { text: string; limit: number }) {\n  const remaining = limit - text.length\n  const overLimit = remaining < 0\n  const nearLimit = remaining >= 0 && remaining < 40\n\n  return (\n    <span className={`text-xs tabular-nums ${overLimit ? 'text-red-400' : nearLimit ? 'text-yellow-400' : 'text-slate-500'}`}>\n      {text.length}/{limit}\n    </span>\n  )\n}\n\n// ---------- Platform char limits ----------\n\nconst PLATFORM_CHAR_LIMITS: Record<string, number> = {\n  TWITTER: 280,\n  INSTAGRAM: 2200,\n  FACEBOOK: 8000,\n  LINKEDIN: 1250,\n  TIKTOK: 2200,\n  YOUTUBE: 10000,\n  REDDIT: 10000,\n}\n\n// ---------- Helper: parse voice ----------\n\nfunction parseVoice(raw: string): BrandVoice {\n  try {",
+        "numLines": 120,
+        "startLine": 1,
+        "totalLines": 780
+      }
+    },
+    "tool_use_id": "toolu_01Eagq1gH9cFCjExiSovZEs4",
+    "duration_ms": 1
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "a06d11128fcdd95f7",
+    "agent_type": "general-purpose",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\(dashboard)\\create\\page.tsx",
+      "offset": 1,
+      "limit": 120
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\(dashboard)\\create\\page.tsx",
+        "content": "'use client'\n\nimport { useState, useEffect } from 'react'\nimport Link from 'next/link'\nimport {\n  Sparkles,\n  RefreshCw,\n  Copy,\n  Check,\n  CalendarPlus,\n  AlertTriangle,\n  ChevronDown,\n  ChevronRight,\n} from 'lucide-react'\nimport { PlatformIcon } from '@/components/platform-icons'\nimport { PLATFORMS, PLATFORM_LABELS } from '@/types'\nimport type { Platform } from '@/types'\nimport { CONTENT_TYPES } from '@/lib/ai/content-types'\nimport type { ContentType } from '@/lib/ai/content-types'\nimport type { GeneratedPost } from '@/lib/ai/content-generator'\nimport clsx from 'clsx'\n\n// ---------- Types ----------\n\ninterface Brand {\n  id: string\n  name: string\n  slug: string\n}\n\n// ---------- Character bar ----------\n\nfunction CharBar({ count, limit }: { count: number; limit: number }) {\n  const pct = Math.min(100, (count / limit) * 100)\n  const over = count > limit\n  const near = pct >= 85 && !over\n\n  return (\n    <div>\n      <div className=\"flex justify-between text-xs mb-1\">\n        <span className={over ? 'text-red-400' : near ? 'text-yellow-400' : 'text-slate-500'}>\n          {count.toLocaleString()} / {limit.toLocaleString()}\n        </span>\n        {over && <span className=\"text-red-400\">{(count - limit).toLocaleString()} over</span>}\n      </div>\n      <div className=\"h-1 bg-slate-700 rounded-full overflow-hidden\">\n        <div\n          className={clsx(\n            'h-full rounded-full transition-all',\n            over ? 'bg-red-500' : near ? 'bg-yellow-400' : 'bg-blue-500'\n          )}\n          style={{ width: `${pct}%` }}\n        />\n      </div>\n    </div>\n  )\n}\n\n// ---------- Copy button ----------\n\nfunction CopyButton({ text, className }: { text: string; className?: string }) {\n  const [copied, setCopied] = useState(false)\n\n  function handleCopy() {\n    navigator.clipboard.writeText(text).then(() => {\n      setCopied(true)\n      setTimeout(() => setCopied(false), 1800)\n    })\n  }\n\n  return (\n    <button\n      onClick={handleCopy}\n      className={clsx(\n        'flex items-center gap-1.5 text-xs font-medium transition-colors',\n        copied ? 'text-green-400' : 'text-slate-400 hover:text-white',\n        className\n      )}\n      type=\"button\"\n    >\n      {copied ? <Check size={13} /> : <Copy size={13} />}\n      {copied ? 'Copied' : 'Copy'}\n    </button>\n  )\n}\n\n// ---------- Result card ----------\n\ninterface ResultCardProps {\n  result: GeneratedPost & { error?: boolean }\n  onSchedule: (result: GeneratedPost) => void\n}\n\nfunction ResultCard({ result, onSchedule }: ResultCardProps) {\n  const [tipOpen, setTipOpen] = useState(false)\n  const hasError = !result.content\n\n  return (\n    <div className={clsx(\n      'bg-slate-800 border rounded-xl p-4 space-y-3',\n      hasError ? 'border-red-700' : 'border-slate-700'\n    )}>\n      {/* Header */}\n      <div className=\"flex items-center justify-between\">\n        <div className=\"flex items-center gap-2\">\n          <PlatformIcon platform={result.platform} size={22} />\n          <span className=\"text-sm font-semibold text-white\">\n            {PLATFORM_LABELS[result.platform]}\n          </span>\n        </div>\n        {!hasError && <CopyButton text={result.content} />}\n      </div>\n\n      {hasError ? (\n        <div className=\"flex items-start gap-2 text-red-400 text-xs\">\n          <AlertTriangle size={14} className=\"flex-shrink-0 mt-0.5\" />\n          <span>{result.tip ?? 'Generation failed.'}</span>\n        </div>\n      ) : (\n        <>",
+        "numLines": 120,
+        "startLine": 1,
+        "totalLines": 415
+      }
+    },
+    "tool_use_id": "toolu_01Lc8aPUMLagx98DF9S9SZLu",
+    "duration_ms": 1
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "a06d11128fcdd95f7",
+    "agent_type": "general-purpose",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\social\\linkedin.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\social\\linkedin.ts",
+        "content": "import type { PublishParams, PublishResult } from './types'\n\nconst LINKEDIN_API_BASE = 'https://api.linkedin.com/v2'\n\ninterface LinkedInUserInfo {\n  sub: string\n}\n\nasync function fetchLinkedInUserUrn(accessToken: string): Promise<string> {\n  const response = await fetch(`${LINKEDIN_API_BASE}/userinfo`, {\n    headers: {\n      Authorization: `Bearer ${accessToken}`,\n    },\n  })\n\n  if (!response.ok) {\n    const text = await response.text()\n    throw new Error(\n      `Failed to fetch LinkedIn user info: HTTP ${response.status} \u00e2\u20ac\u201d ${text || 'No response body'}`,\n    )\n  }\n\n  const data = (await response.json()) as LinkedInUserInfo\n  const sub = data.sub?.trim() ?? ''\n\n  if (!sub) {\n    throw new Error('LinkedIn userinfo response did not contain a \"sub\" field.')\n  }\n\n  return `urn:li:person:${sub}`\n}\n\nexport async function publishToLinkedIn(params: PublishParams): Promise<PublishResult> {\n  if (!params.accessToken?.trim()) {\n    return { success: false, error: 'LinkedIn access token is required.' }\n  }\n\n  if (!params.content?.trim()) {\n    return { success: false, error: 'LinkedIn post content cannot be empty.' }\n  }\n\n  try {\n    const authorUrn = await fetchLinkedInUserUrn(params.accessToken)\n\n    const ugcPostBody = {\n      author: authorUrn,\n      lifecycleState: 'PUBLISHED',\n      specificContent: {\n        'com.linkedin.ugc.ShareContent': {\n          shareCommentary: {\n            text: params.content,\n          },\n          shareMediaCategory: 'NONE',\n        },\n      },\n      visibility: {\n        'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC',\n      },\n    }\n\n    const response = await fetch(`${LINKEDIN_API_BASE}/ugcPosts`, {\n      method: 'POST',\n      headers: {\n        Authorization: `Bearer ${params.accessToken}`,\n        'Content-Type': 'application/json',\n        'X-Restli-Protocol-Version': '2.0.0',\n      },\n      body: JSON.stringify(ugcPostBody),\n    })\n\n    if (!response.ok) {\n      const text = await response.text()\n      let errorMessage = `HTTP ${response.status}`\n\n      try {\n        const errorData = JSON.parse(text) as Record<string, unknown>\n        errorMessage =\n          (typeof errorData.message === 'string' && errorData.message) ||\n          (typeof errorData.serviceErrorCode === 'number'\n            ? `LinkedIn API error code ${errorData.serviceErrorCode}`\n            : errorMessage)\n      } catch {\n        errorMessage = text || errorMessage\n      }\n\n      throw new Error(`LinkedIn ugcPosts failed: ${errorMessage}`)\n    }\n\n    const postId = response.headers.get('x-restli-id') ?? ''\n    let bodyPostId = ''\n\n    try {\n      const responseData = (await response.json()) as Record<string, unknown>\n      bodyPostId = typeof responseData.id === 'string' ? responseData.id : ''\n    } catch {\n      // Response body may be empty on 201 Created \u00e2\u20ac\u201d header is the reliable source\n    }\n\n    return {\n      success: true,\n      postId: postId || bodyPostId || undefined,\n    }\n  } catch (error) {\n    return {\n      success: false,\n      error: error instanceof Error ? error.message : String(error),\n    }\n  }\n}\n",
+        "numLines": 110,
+        "startLine": 1,
+        "totalLines": 110
+      }
+    },
+    "tool_use_id": "toolu_019VeN5Z8u2Ax3JgewefXBvZ",
+    "duration_ms": 1
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "af5fb5e19db2e26a5",
+    "agent_type": "everything-claude-code:security-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\.gitignore"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\.gitignore",
+        "content": "# Dependencies\nnode_modules\n.pnp\n.pnp.js\n.yarn/install-state.gz\n\n# Testing\n/coverage\n\n# Next.js\n/.next/\n/out/\n\n# Production\n/build\n\n# Misc\n.DS_Store\n*.pem\n\n# Debug\nnpm-debug.log*\nyarn-debug.log*\nyarn-error.log*\n\n# Local env files\n.env\n.env.local\n.env.development.local\n.env.test.local\n.env.production.local\n\n# Vercel\n.vercel\n\n# TypeScript\n*.tsbuildinfo\nnext-env.d.ts\n\n# Prisma\nprisma/dev.db\nprisma/dev.db-journal\nprisma/*.db\nprisma/*.db-journal\n",
+        "numLines": 45,
+        "startLine": 1,
+        "totalLines": 45
+      }
+    },
+    "tool_use_id": "toolu_01GfFRN8wRwRK4FnjECB3tja",
+    "duration_ms": 2
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "af5fb5e19db2e26a5",
+    "agent_type": "everything-claude-code:security-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\next.config.mjs"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\next.config.mjs",
+        "content": "import path from 'path'\nimport { fileURLToPath } from 'url'\n\nconst __dirname = path.dirname(fileURLToPath(import.meta.url))\n\n/** @type {import('next').NextConfig} */\nconst nextConfig = {\n  outputFileTracingRoot: __dirname,\n  serverExternalPackages: ['@prisma/client', 'prisma'],\n  images: {\n    remotePatterns: [\n      {\n        protocol: 'https',\n        hostname: '**',\n      },\n    ],\n  },\n}\n\nexport default nextConfig\n",
+        "numLines": 21,
+        "startLine": 1,
+        "totalLines": 21
+      }
+    },
+    "tool_use_id": "toolu_01Azi6wQ5FKLK7gFYqTMPNSm",
+    "duration_ms": 11
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "ab271c4fac06c3966",
+    "agent_type": "everything-claude-code:code-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\oauth\\google\\route.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\oauth\\google\\route.ts",
+        "content": "import { NextRequest } from 'next/server'\n\nexport async function GET(request: NextRequest) {\n  const { searchParams } = new URL(request.url)\n  const brandId = searchParams.get('brandId')\n\n  if (!brandId) {\n    return Response.json({ success: false, error: 'brandId is required' }, { status: 400 })\n  }\n\n  const clientId = process.env.GOOGLE_CLIENT_ID\n  const redirectUri = process.env.GOOGLE_REDIRECT_URI\n\n  if (!clientId || !redirectUri) {\n    return Response.json(\n      { success: false, error: 'Google OAuth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_REDIRECT_URI.' },\n      { status: 500 }\n    )\n  }\n\n  const scopes = [\n    'https://www.googleapis.com/auth/youtube.upload',\n    'https://www.googleapis.com/auth/youtube.readonly',\n    'https://www.googleapis.com/auth/userinfo.profile',\n    'https://www.googleapis.com/auth/userinfo.email',\n  ].join(' ')\n\n  const state = Buffer.from(JSON.stringify({ brandId, ts: Date.now() })).toString('base64url')\n\n  const params = new URLSearchParams({\n    client_id: clientId,\n    redirect_uri: redirectUri,\n    response_type: 'code',\n    scope: scopes,\n    access_type: 'offline',\n    prompt: 'consent',\n    state,\n  })\n\n  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`\n\n  return Response.redirect(authUrl)\n}\n",
+        "numLines": 44,
+        "startLine": 1,
+        "totalLines": 44
+      }
+    },
+    "tool_use_id": "toolu_0162AuyHJubjLGCzpJChnGQr",
+    "duration_ms": 0
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "ab271c4fac06c3966",
+    "agent_type": "everything-claude-code:code-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\oauth\\linkedin\\route.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\oauth\\linkedin\\route.ts",
+        "content": "import { NextRequest } from 'next/server'\n\nexport async function GET(request: NextRequest) {\n  const { searchParams } = new URL(request.url)\n  const brandId = searchParams.get('brandId')\n\n  if (!brandId) {\n    return Response.json({ success: false, error: 'brandId is required' }, { status: 400 })\n  }\n\n  const clientId = process.env.LINKEDIN_CLIENT_ID\n  const redirectUri = process.env.LINKEDIN_REDIRECT_URI\n\n  if (!clientId || !redirectUri) {\n    return Response.json(\n      { success: false, error: 'LinkedIn OAuth is not configured. Set LINKEDIN_CLIENT_ID and LINKEDIN_REDIRECT_URI.' },\n      { status: 500 }\n    )\n  }\n\n  const scopes = ['openid', 'profile', 'email', 'w_member_social'].join(' ')\n\n  const state = Buffer.from(JSON.stringify({ brandId, ts: Date.now() })).toString('base64url')\n\n  const params = new URLSearchParams({\n    response_type: 'code',\n    client_id: clientId,\n    redirect_uri: redirectUri,\n    scope: scopes,\n    state,\n  })\n\n  const authUrl = `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`\n\n  return Response.redirect(authUrl)\n}\n",
+        "numLines": 37,
+        "startLine": 1,
+        "totalLines": 37
+      }
+    },
+    "tool_use_id": "toolu_01CzKZ3xuGdz2uKLC4srni59",
+    "duration_ms": 1
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "ab271c4fac06c3966",
+    "agent_type": "everything-claude-code:code-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\oauth\\tiktok\\route.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\oauth\\tiktok\\route.ts",
+        "content": "import { NextRequest } from 'next/server'\nimport { randomBytes } from 'crypto'\n\nexport async function GET(request: NextRequest) {\n  const { searchParams } = new URL(request.url)\n  const brandId = searchParams.get('brandId')\n\n  if (!brandId) {\n    return Response.json({ success: false, error: 'brandId is required' }, { status: 400 })\n  }\n\n  const clientKey = process.env.TIKTOK_CLIENT_KEY\n  const redirectUri = process.env.TIKTOK_REDIRECT_URI\n\n  if (!clientKey || !redirectUri) {\n    return Response.json(\n      { success: false, error: 'TikTok OAuth is not configured. Set TIKTOK_CLIENT_KEY and TIKTOK_REDIRECT_URI.' },\n      { status: 500 }\n    )\n  }\n\n  const scopes = [\n    'user.info.basic',\n    'video.publish',\n    'video.upload',\n  ].join(',')\n\n  const codeVerifier = randomBytes(32).toString('base64url')\n  const state = Buffer.from(\n    JSON.stringify({ brandId, codeVerifier, ts: Date.now() })\n  ).toString('base64url')\n\n  const params = new URLSearchParams({\n    client_key: clientKey,\n    scope: scopes,\n    response_type: 'code',\n    redirect_uri: redirectUri,\n    state,\n  })\n\n  const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`\n\n  return Response.redirect(authUrl)\n}\n",
+        "numLines": 45,
+        "startLine": 1,
+        "totalLines": 45
+      }
+    },
+    "tool_use_id": "toolu_01H1ZCugmsaSQz6KuzTaTPwt",
+    "duration_ms": 1
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "a06d11128fcdd95f7",
+    "agent_type": "general-purpose",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\(dashboard)\\create\\page.tsx",
+      "offset": 150,
+      "limit": 130
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\(dashboard)\\create\\page.tsx",
+        "content": "            onClick={() => onSchedule(result)}\n            className=\"w-full flex items-center justify-center gap-2 btn-secondary text-sm\"\n            type=\"button\"\n          >\n            <CalendarPlus size={14} />\n            Schedule this post\n          </button>\n        </>\n      )}\n    </div>\n  )\n}\n\n// ---------- Platform chip ----------\n\nfunction PlatformChip({\n  platform,\n  selected,\n  onToggle,\n}: {\n  platform: Platform\n  selected: boolean\n  onToggle: () => void\n}) {\n  return (\n    <button\n      onClick={onToggle}\n      type=\"button\"\n      className={clsx(\n        'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors',\n        selected\n          ? 'border-blue-500/60 bg-blue-500/10 text-white'\n          : 'border-slate-700 bg-slate-900 text-slate-400 hover:text-white hover:border-slate-600'\n      )}\n    >\n      <PlatformIcon platform={platform} size={20} />\n      {PLATFORM_LABELS[platform]}\n    </button>\n  )\n}\n\n// ---------- Main page ----------\n\nexport default function CreatePage() {\n  const [brands, setBrands] = useState<Brand[]>([])\n  const [brandId, setBrandId] = useState('')\n  const [contentType, setContentType] = useState<ContentType>('educational')\n  const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(['INSTAGRAM', 'LINKEDIN'])\n  const [topic, setTopic] = useState('')\n\n  const [generating, setGenerating] = useState(false)\n  const [error, setError] = useState<string | null>(null)\n  const [results, setResults] = useState<GeneratedPost[]>([])\n\n  useEffect(() => {\n    fetch('/api/brands')\n      .then((r) => r.json())\n      .then((json) => {\n        const list: Brand[] = json.data ?? []\n        setBrands(list)\n        if (list.length > 0) setBrandId(list[0].id)\n      })\n      .catch(() => {})\n  }, [])\n\n  function togglePlatform(p: Platform) {\n    setSelectedPlatforms((prev) =>\n      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]\n    )\n  }\n\n  async function handleGenerate() {\n    if (!brandId || selectedPlatforms.length === 0) return\n    setGenerating(true)\n    setError(null)\n    setResults([])\n\n    try {\n      const res = await fetch('/api/content/generate', {\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json' },\n        body: JSON.stringify({ brandId, platforms: selectedPlatforms, contentType, topic }),\n      })\n      const json = await res.json() as { success: boolean; data?: GeneratedPost[]; error?: string }\n\n      if (!json.success || !json.data) {\n        throw new Error(json.error ?? 'Generation failed')\n      }\n      setResults(json.data)\n    } catch (err) {\n      setError(err instanceof Error ? err.message : 'Generation failed')\n    } finally {\n      setGenerating(false)\n    }\n  }\n\n  function handleSchedule(result: GeneratedPost) {\n    sessionStorage.setItem('smg_prefill_content', result.content)\n    sessionStorage.setItem('smg_prefill_platform', result.platform)\n    window.location.href = '/schedule'\n  }\n\n  const canGenerate = !!brandId && selectedPlatforms.length > 0 && !generating\n\n  return (\n    <div className=\"min-h-full p-6 space-y-6\">\n      {/* Header */}\n      <div>\n        <h1 className=\"text-xl font-bold text-white\">Content Lab</h1>\n        <p className=\"text-sm text-slate-400 mt-0.5\">\n          AI-generated, platform-adapted post copy based on your brand voice.\n        </p>\n      </div>\n\n      <div className=\"grid grid-cols-1 xl:grid-cols-3 gap-6\">\n        {/* ===== LEFT \u00e2\u20ac\u201d Controls ===== */}\n        <div className=\"xl:col-span-1 space-y-5\">\n          <div className=\"bg-slate-800 border border-slate-700 rounded-xl p-5 space-y-5\">\n\n            {/* Brand */}\n            <div>\n              <label className=\"block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2\">\n                Brand\n              </label>\n              {brands.length === 0 ? (\n                <p className=\"text-slate-500 text-sm\">\n                  No brands yet.{' '}\n                  <Link href=\"/brands\" className=\"text-blue-400 hover:underline\">Create one</Link>\n                </p>\n              ) : (",
+        "numLines": 130,
+        "startLine": 150,
+        "totalLines": 415
+      }
+    },
+    "tool_use_id": "toolu_01UgQrmh4uqYH9ihDgLG98mK",
+    "duration_ms": 26
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "a06d11128fcdd95f7",
+    "agent_type": "general-purpose",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\content\\generate\\route.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\content\\generate\\route.ts",
+        "content": "import { NextRequest, NextResponse } from 'next/server'\nimport { z } from 'zod'\nimport { generateContent } from '@/lib/ai/content-generator'\nimport { CONTENT_TYPES } from '@/lib/ai/content-types'\nimport type { ContentType } from '@/lib/ai/content-types'\nimport { getBrandById } from '@/lib/brands'\nimport type { Platform } from '@/types'\nimport { PLATFORMS } from '@/types'\n\nconst schema = z.object({\n  brandId: z.string().min(1),\n  platforms: z.array(z.enum(PLATFORMS as [Platform, ...Platform[]])).min(1),\n  contentType: z.enum(Object.keys(CONTENT_TYPES) as [ContentType, ...ContentType[]]),\n  topic: z.string().max(500).optional().default(''),\n})\n\nexport async function POST(req: NextRequest) {\n  try {\n    const body = await req.json()\n    const parsed = schema.safeParse(body)\n\n    if (!parsed.success) {\n      return NextResponse.json(\n        { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid request' },\n        { status: 400 }\n      )\n    }\n\n    const { brandId, platforms, contentType, topic } = parsed.data\n\n    const brand = await getBrandById(brandId)\n    if (!brand) {\n      return NextResponse.json({ success: false, error: 'Brand not found' }, { status: 404 })\n    }\n\n    const { voice, context } = brand\n\n    const results = await generateContent(platforms, brand.name, voice, context, contentType, topic)\n\n    return NextResponse.json({ success: true, data: results })\n  } catch (error) {\n    console.error('Content generation error:', error)\n    return NextResponse.json(\n      { success: false, error: 'Content generation failed. Please try again.' },\n      { status: 500 }\n    )\n  }\n}\n",
+        "numLines": 49,
+        "startLine": 1,
+        "totalLines": 49
+      }
+    },
+    "tool_use_id": "toolu_015x1g2Q3CSadfCrkos1HAJR",
+    "duration_ms": 75
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "af5fb5e19db2e26a5",
+    "agent_type": "everything-claude-code:security-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Grep",
+    "tool_input": {
+      "pattern": "next/image|from 'next/image'|<Image",
+      "path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src",
+      "output_mode": "files_with_matches"
+    },
+    "tool_response": {
+      "mode": "files_with_matches",
+      "filenames": [],
+      "numFiles": 0
+    },
+    "tool_use_id": "toolu_01W4J9VfM3YvnYCvmhyoFXG5",
+    "duration_ms": 136
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "af5fb5e19db2e26a5",
+    "agent_type": "everything-claude-code:security-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Grep",
+    "tool_input": {
+      "pattern": "logoUrl",
+      "path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src",
+      "output_mode": "content",
+      "-n": true
+    },
+    "tool_response": {
+      "mode": "content",
+      "numFiles": 0,
+      "filenames": [],
+      "content": "src\\app\\api\\seed\\route.ts:60:        logoUrl: null,\nsrc\\app\\(dashboard)\\schedule\\page.tsx:23:  logoUrl: string | null\nsrc\\lib\\brands.ts:9:  logoUrl: string | null\nsrc\\lib\\brands.ts:50:  logoUrl: string | null\nsrc\\app\\api\\brands\\route.ts:14:  logoUrl: z.string().url().optional(),\nsrc\\app\\api\\brands\\route.ts:42:      logoUrl: b.logoUrl,\nsrc\\app\\api\\brands\\route.ts:71:    const { name, slug, description, logoUrl, voice, context } = validated.data\nsrc\\app\\api\\brands\\route.ts:86:        logoUrl: logoUrl ?? null,\nsrc\\app\\api\\brands\\[id]\\route.ts:9:  logoUrl: z.string().url().nullable().optional(),",
+      "numLines": 9
+    },
+    "tool_use_id": "toolu_015kNLH2hJPpH8BjefL5rQXg",
+    "duration_ms": 115
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd '/c/Users/OliverProductions/Desktop/2.DEVELOPMENT Work/SMG-Social-Hub' && curl -s -o /dev/null -w \"homepage HTTP %{http_code}\\n\" http://localhost:3000/ --max-time 30 2>&1; curl -s -o /dev/null -w \"brands API HTTP %{http_code}\\n\" http://localhost:3000/api/brands --max-time 30 2>&1",
+      "description": "Check dev server responds"
+    },
+    "tool_response": {
+      "stdout": "homepage HTTP 200\r\nbrands API HTTP 200",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false,
+      "noOutputExpected": false
+    },
+    "tool_use_id": "toolu_01WN9vkYGC4jcd6YKPgKExJd",
+    "duration_ms": 8654
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "ab271c4fac06c3966",
+    "agent_type": "everything-claude-code:code-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Grep",
+    "tool_input": {
+      "pattern": "getServerSession|auth()|middleware|NextAuth|clerkMiddleware|requireAuth",
+      "path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src",
+      "output_mode": "files_with_matches"
+    },
+    "tool_response": {
+      "mode": "files_with_matches",
+      "filenames": [
+        "src\\lib\\ai\\reply-generator.ts",
+        "src\\app\\(dashboard)\\comments\\page.tsx",
+        "src\\lib\\comments\\index.ts",
+        "src\\lib\\ai\\content-generator.ts",
+        "src\\app\\(dashboard)\\page.tsx",
+        "src\\app\\(dashboard)\\comments\\[id]\\page.tsx",
+        "src\\app\\api\\comments\\[id]\\generate-reply\\route.ts",
+        "src\\app\\api\\oauth\\google\\callback\\route.ts",
+        "src\\app\\api\\oauth\\google\\route.ts",
+        "src\\app\\api\\comments\\route.ts",
+        "src\\app\\api\\oauth\\tiktok\\callback\\route.ts",
+        "src\\app\\api\\oauth\\tiktok\\route.ts",
+        "src\\app\\api\\oauth\\linkedin\\callback\\route.ts",
+        "src\\lib\\social\\index.ts",
+        "src\\app\\api\\oauth\\linkedin\\route.ts",
+        "src\\app\\api\\oauth\\facebook\\callback\\route.ts",
+        "src\\lib\\comments\\tiktok.ts",
+        "src\\app\\api\\oauth\\facebook\\route.ts",
+        "src\\lib\\comments\\twitter.ts",
+        "src\\lib\\comments\\reddit.ts",
+        "src\\lib\\comments\\youtube.ts",
+        "src\\lib\\comments\\linkedin.ts",
+        "src\\lib\\comments\\instagram.ts",
+        "src\\lib\\social\\youtube.ts",
+        "src\\app\\(dashboard)\\connect\\connect-platform-card.tsx",
+        "src\\lib\\comments\\facebook.ts",
+        "src\\lib\\social\\linkedin.ts",
+        "src\\lib\\comments\\types.ts",
+        "src\\lib\\social\\reddit.ts",
+        "src\\lib\\social\\twitter.ts",
+        "src\\lib\\social\\types.ts",
+        "src\\types\\index.ts",
+        "src\\lib\\crypto.ts"
+      ],
+      "numFiles": 33
+    },
+    "tool_use_id": "toolu_01M1spHTjWAaf55Djc3eeQVE",
+    "duration_ms": 49
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "ab271c4fac06c3966",
+    "agent_type": "everything-claude-code:code-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Glob",
+    "tool_input": {
+      "pattern": "src/middleware.ts"
+    },
+    "tool_response": {
+      "filenames": [],
+      "durationMs": 208,
+      "numFiles": 0,
+      "truncated": false,
+      "totalMatches": 0,
+      "countIsComplete": true
+    },
+    "tool_use_id": "toolu_01C1h8d2K8SFHFggd2EixZbN",
+    "duration_ms": 208
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "ab271c4fac06c3966",
+    "agent_type": "everything-claude-code:code-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd \"C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\" && find src -iname \"middleware*\"",
+      "description": "Search for middleware file"
+    },
+    "tool_response": {
+      "stdout": "",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false,
+      "noOutputExpected": false
+    },
+    "tool_use_id": "toolu_01B8fGGxx9GFFrfETomyLD4p",
+    "duration_ms": 3218
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "af5fb5e19db2e26a5",
+    "agent_type": "everything-claude-code:security-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\(dashboard)\\queue\\queue-actions.tsx"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\(dashboard)\\queue\\queue-actions.tsx",
+        "content": "'use client'\n\nimport { useState } from 'react'\nimport { useRouter } from 'next/navigation'\nimport type { PostStatus } from '@/types'\n\ninterface QueueActionsProps {\n  postId: string\n  status: PostStatus\n}\n\nexport function QueueActions({ postId, status }: QueueActionsProps) {\n  const router = useRouter()\n  const [loading, setLoading] = useState(false)\n  const [error, setError] = useState<string | null>(null)\n\n  async function handleCancel() {\n    if (!confirm('Cancel this scheduled post?')) return\n    setLoading(true)\n    setError(null)\n    try {\n      const res = await fetch(`/api/schedule/${postId}`, { method: 'DELETE' })\n      const json = await res.json()\n      if (!json.success) {\n        setError(json.error ?? 'Failed to cancel.')\n        return\n      }\n      router.refresh()\n    } catch {\n      setError('Network error.')\n    } finally {\n      setLoading(false)\n    }\n  }\n\n  async function handleRetry() {\n    setLoading(true)\n    setError(null)\n    try {\n      const res = await fetch(`/api/schedule/retry/${postId}`, { method: 'POST' })\n      const json = await res.json()\n      if (!json.success) {\n        setError(json.error ?? 'Retry failed.')\n        return\n      }\n      router.refresh()\n    } catch {\n      setError('Network error.')\n    } finally {\n      setLoading(false)\n    }\n  }\n\n  return (\n    <div className=\"flex items-center gap-2 flex-wrap\">\n      {status === 'PENDING' && (\n        <>\n          <a\n            href={`/schedule/edit/${postId}`}\n            className=\"text-xs text-slate-300 hover:text-white border border-slate-700 hover:border-slate-500 rounded px-2 py-0.5 transition-colors\"\n          >\n            Edit\n          </a>\n          <button\n            onClick={handleCancel}\n            disabled={loading}\n            className=\"text-xs text-red-400 hover:text-red-300 border border-red-800/50 hover:border-red-600/50 rounded px-2 py-0.5 transition-colors disabled:opacity-50\"\n          >\n            {loading ? 'Cancelling...' : 'Cancel'}\n          </button>\n        </>\n      )}\n\n      {status === 'FAILED' && (\n        <button\n          onClick={handleRetry}\n          disabled={loading}\n          className=\"text-xs text-yellow-400 hover:text-yellow-300 border border-yellow-800/50 hover:border-yellow-600/50 rounded px-2 py-0.5 transition-colors disabled:opacity-50\"\n        >\n          {loading ? 'Retrying...' : 'Retry'}\n        </button>\n      )}\n\n      {error && (\n        <span className=\"text-xs text-red-400\">{error}</span>\n      )}\n    </div>\n  )\n}\n",
+        "numLines": 90,
+        "startLine": 1,
+        "totalLines": 90
+      }
+    },
+    "tool_use_id": "toolu_01PqTSdHSJipd9sBFvpCcsEE",
+    "duration_ms": 0
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "af5fb5e19db2e26a5",
+    "agent_type": "everything-claude-code:security-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\ai\\risk-filter.test.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\ai\\risk-filter.test.ts",
+        "content": "import { describe, it, expect } from 'vitest'\nimport { assessReplyRisk } from './risk-filter'\n\ndescribe('assessReplyRisk', () => {\n  it('returns LOW with no flags for a benign exchange', () => {\n    const result = assessReplyRisk(\n      'How do I register my new blender?',\n      'Great question! Head to the setup page and follow the three steps.'\n    )\n    expect(result.riskLevel).toBe('LOW')\n    expect(result.flags).toEqual([])\n    expect(result.requiresHumanReview).toBe(false)\n  })\n\n  it('flags HIGH when the comment contains a legal threat', () => {\n    const result = assessReplyRisk(\n      'I am going to sue you, this is fraud!',\n      'Sorry to hear that \u00e2\u20ac\u201d let me connect you with our support team.'\n    )\n    expect(result.riskLevel).toBe('HIGH')\n    expect(result.requiresHumanReview).toBe(true)\n    expect(result.flags.some((f) => f.startsWith('High-risk terms detected'))).toBe(true)\n  })\n\n  it('flags HIGH when the comment demands a refund or chargeback', () => {\n    expect(assessReplyRisk('I want a refund now', 'Understood.').riskLevel).toBe('HIGH')\n    expect(assessReplyRisk('I will file a chargeback', 'Okay.').riskLevel).toBe('HIGH')\n  })\n\n  it('escalates to HIGH when the DRAFT contains commitment language even if the comment is benign', () => {\n    const result = assessReplyRisk(\n      'Does this come with a warranty?',\n      'Yes, we guarantee a full refund if it ever breaks.'\n    )\n    expect(result.riskLevel).toBe('HIGH')\n    expect(result.requiresHumanReview).toBe(true)\n    expect(\n      result.flags.some((f) => f.startsWith('Draft reply contains commitment language'))\n    ).toBe(true)\n  })\n\n  it('returns MEDIUM for sensitive complaint language without legal/commitment terms', () => {\n    const result = assessReplyRisk(\n      'The product arrived broken and defective',\n      'So sorry about that \u00e2\u20ac\u201d here is how to get a replacement.'\n    )\n    expect(result.riskLevel).toBe('MEDIUM')\n    expect(result.requiresHumanReview).toBe(true)\n    expect(result.flags.some((f) => f.startsWith('Sensitive terms detected'))).toBe(true)\n  })\n\n  it('is case-insensitive when matching keywords', () => {\n    const result = assessReplyRisk('This is a SCAM and FRAUD', 'Let me help.')\n    expect(result.riskLevel).toBe('HIGH')\n  })\n\n  it('matches multi-word phrases like \"class action\" and \"does not work\"', () => {\n    expect(assessReplyRisk('we are starting a class action', 'ok').riskLevel).toBe('HIGH')\n    expect(assessReplyRisk('the app does not work at all', 'ok').riskLevel).toBe('MEDIUM')\n  })\n\n  it('scans both the comment and the draft reply for high-risk terms', () => {\n    const result = assessReplyRisk(\n      'Just a normal question',\n      'You should contact the Better Business Bureau.'\n    )\n    expect(result.riskLevel).toBe('HIGH')\n  })\n\n  it('lists every matched high-risk term in the flag', () => {\n    const result = assessReplyRisk('scam and fraud and lawsuit', 'ok')\n    const highFlag = result.flags.find((f) => f.startsWith('High-risk terms detected'))\n    expect(highFlag).toBeDefined()\n    expect(highFlag).toContain('scam')\n    expect(highFlag).toContain('fraud')\n    expect(highFlag).toContain('lawsuit')\n  })\n\n  it('prioritises HIGH over MEDIUM when both are present', () => {\n    const result = assessReplyRisk(\n      'the product is broken and I will sue',\n      'ok'\n    )\n    expect(result.riskLevel).toBe('HIGH')\n    // both a sensitive and a high-risk flag should be present\n    expect(result.flags.some((f) => f.startsWith('Sensitive terms detected'))).toBe(true)\n    expect(result.flags.some((f) => f.startsWith('High-risk terms detected'))).toBe(true)\n  })\n})\n",
+        "numLines": 90,
+        "startLine": 1,
+        "totalLines": 90
+      }
+    },
+    "tool_use_id": "toolu_01QMCUy5QKGbFxUEYZ2Krzii",
+    "duration_ms": 0
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "ab271c4fac06c3966",
+    "agent_type": "everything-claude-code:code-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\comments\\linkedin.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\comments\\linkedin.ts",
+        "content": "import type { CommentFetchResult } from './types'\n\nconst LINKEDIN_API_BASE = 'https://api.linkedin.com/v2'\nconst LINKEDIN_VERSION = '202312'\n\nasync function fetchLinkedInJson(url: string, accessToken: string): Promise<Record<string, unknown>> {\n  const response = await fetch(url, {\n    headers: {\n      Authorization: `Bearer ${accessToken}`,\n      'LinkedIn-Version': LINKEDIN_VERSION,\n      'X-Restli-Protocol-Version': '2.0.0',\n    },\n  })\n\n  const text = await response.text()\n  let payload: Record<string, unknown> = {}\n  try {\n    payload = text ? (JSON.parse(text) as Record<string, unknown>) : {}\n  } catch {\n    payload = {}\n  }\n\n  if (!response.ok) {\n    const message =\n      (typeof payload.message === 'string' && payload.message) ||\n      text ||\n      `HTTP ${response.status}`\n    throw new Error(`LinkedIn API error: ${message}`)\n  }\n\n  return payload\n}\n\ninterface RawLinkedInComment {\n  id?: string\n  message?: { text?: string }\n  actor?: string                 // URN like \"urn:li:person:XXXX\"\n  created?: { time?: number }\n}\n\nfunction extractPersonId(actorUrn: string | undefined): string {\n  if (!actorUrn) return 'unknown'\n  const parts = actorUrn.split(':')\n  return parts[parts.length - 1] ?? actorUrn\n}\n\nexport async function fetchLinkedInComments(params: {\n  accessToken: string\n  postUrn?: string\n  limit?: number\n}): Promise<CommentFetchResult> {\n  const postUrn = params.postUrn ?? ''\n  const empty: CommentFetchResult = {\n    platform: 'LINKEDIN',\n    postUrl: postUrn\n      ? `https://www.linkedin.com/feed/update/${encodeURIComponent(postUrn)}/`\n      : 'https://www.linkedin.com',\n    comments: [],\n  }\n\n  if (!postUrn) return empty\n\n  try {\n    const limit = params.limit ?? 50\n    const encodedUrn = encodeURIComponent(postUrn)\n    const url =\n      `${LINKEDIN_API_BASE}/socialActions/${encodedUrn}/comments` +\n      `?count=${limit}`\n\n    const payload = await fetchLinkedInJson(url, params.accessToken)\n    const rawElements = Array.isArray(payload.elements)\n      ? (payload.elements as RawLinkedInComment[])\n      : []\n\n    const comments = rawElements.flatMap((el): CommentFetchResult['comments'] => {\n      const text = el.message?.text\n      if (!el.id || !text) return []\n      return [\n        {\n          commentId: el.id,\n          text,\n          authorName: extractPersonId(el.actor),\n          authorHandle: el.actor,\n          createdAt: el.created?.time\n            ? new Date(el.created.time).toISOString()\n            : undefined,\n        },\n      ]\n    })\n\n    return {\n      ...empty,\n      postUrl: `https://www.linkedin.com/feed/update/${encodeURIComponent(postUrn)}/`,\n      comments,\n    }\n  } catch {\n    return empty\n  }\n}\n",
+        "numLines": 100,
+        "startLine": 1,
+        "totalLines": 100
+      }
+    },
+    "tool_use_id": "toolu_015rD2gVye7JgGM5VPHwg17R",
+    "duration_ms": 0
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "af5fb5e19db2e26a5",
+    "agent_type": "everything-claude-code:security-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\scheduler.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\scheduler.ts",
+        "content": "import { prisma } from '@/lib/db'\nimport { publishPost } from '@/lib/social/index'\nimport type { PostStatus } from '@/types'\n\ninterface PlatformResult {\n  success: boolean\n  postId?: string\n  postUrl?: string\n  error?: string\n  requiresAuth?: boolean\n}\n\nexport interface ProcessedPostResult {\n  postId: string\n  status: PostStatus\n  platformResults: Record<string, PlatformResult>\n  error?: string\n}\n\nfunction parsePlatforms(raw: string): string[] {\n  try {\n    const parsed = JSON.parse(raw)\n    return Array.isArray(parsed) ? parsed : []\n  } catch {\n    return []\n  }\n}\n\nfunction parseMediaUrls(raw: string): string[] {\n  try {\n    const parsed = JSON.parse(raw)\n    return Array.isArray(parsed) ? parsed : []\n  } catch {\n    return []\n  }\n}\n\nexport async function processScheduledPosts(): Promise<ProcessedPostResult[]> {\n  const now = new Date()\n\n  const pendingPosts = await prisma.scheduledPost.findMany({\n    where: {\n      status: 'PENDING',\n      scheduledAt: { lte: now },\n    },\n    orderBy: { scheduledAt: 'asc' },\n  })\n\n  const results: ProcessedPostResult[] = []\n\n  for (const post of pendingPosts) {\n    await prisma.scheduledPost.update({\n      where: { id: post.id },\n      data: { status: 'PUBLISHING' },\n    })\n\n    const platforms = parsePlatforms(post.platforms)\n    const mediaUrls = parseMediaUrls(post.mediaUrls)\n\n    let platformResults: Record<string, PlatformResult> = {}\n\n    try {\n      platformResults = await publishPost({\n        brandId: post.brandId,\n        platforms,\n        content: post.content,\n        mediaUrls,\n      })\n    } catch (err) {\n      const errorMessage = err instanceof Error ? err.message : 'Unexpected publishing error'\n\n      await prisma.scheduledPost.update({\n        where: { id: post.id },\n        data: { status: 'FAILED', error: errorMessage, results: '{}' },\n      })\n\n      results.push({\n        postId: post.id,\n        status: 'FAILED',\n        platformResults: {},\n        error: errorMessage,\n      })\n\n      continue\n    }\n\n    const allFailed =\n      platforms.length === 0 ||\n      Object.values(platformResults).every((r) => !r.success)\n\n    const anySuccess = Object.values(platformResults).some((r) => r.success)\n\n    const finalStatus: PostStatus = allFailed ? 'FAILED' : 'PUBLISHED'\n\n    const errorMessage = allFailed\n      ? Object.values(platformResults)\n          .map((r) => r.error)\n          .filter(Boolean)\n          .join('; ') || 'All platforms failed'\n      : undefined\n\n    await prisma.scheduledPost.update({\n      where: { id: post.id },\n      data: {\n        status: finalStatus,\n        publishedAt: anySuccess ? new Date() : null,\n        results: JSON.stringify(platformResults),\n        error: errorMessage ?? null,\n      },\n    })\n\n    results.push({\n      postId: post.id,\n      status: finalStatus,\n      platformResults,\n      error: errorMessage,\n    })\n  }\n\n  return results\n}\n\nexport async function cancelPost(postId: string): Promise<void> {\n  const post = await prisma.scheduledPost.findUnique({\n    where: { id: postId },\n  })\n\n  if (!post) {\n    throw new Error(`Post ${postId} not found`)\n  }\n\n  if (post.status !== 'PENDING') {\n    throw new Error(\n      `Cannot cancel post ${postId} \u00e2\u20ac\u201d current status is ${post.status}. Only PENDING posts can be cancelled.`\n    )\n  }\n\n  await prisma.scheduledPost.update({\n    where: { id: postId },\n    data: { status: 'CANCELLED' },\n  })\n}\n",
+        "numLines": 143,
+        "startLine": 1,
+        "totalLines": 143
+      }
+    },
+    "tool_use_id": "toolu_01K81xeQzZhzvdJ6fDRzUrE8",
+    "duration_ms": 2
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "ab271c4fac06c3966",
+    "agent_type": "everything-claude-code:code-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\comments\\instagram.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\comments\\instagram.ts",
+        "content": "import type { CommentFetchResult } from './types'\n\nconst GRAPH_API_VERSION = 'v19.0'\nconst GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`\n\nasync function fetchGraphJson(url: string): Promise<Record<string, unknown>> {\n  const response = await fetch(url)\n  const text = await response.text()\n\n  let payload: Record<string, unknown> = {}\n  try {\n    payload = text ? (JSON.parse(text) as Record<string, unknown>) : {}\n  } catch {\n    payload = {}\n  }\n\n  if (!response.ok) {\n    const errorRecord =\n      payload.error && typeof payload.error === 'object' && !Array.isArray(payload.error)\n        ? (payload.error as Record<string, unknown>)\n        : {}\n    const message =\n      (typeof errorRecord.message === 'string' && errorRecord.message) ||\n      text ||\n      `HTTP ${response.status}`\n    throw new Error(`Instagram Graph API error: ${message}`)\n  }\n\n  return payload\n}\n\ninterface RawIgComment {\n  id?: string\n  text?: string\n  username?: string\n  timestamp?: string\n}\n\ninterface RawIgMedia {\n  id?: string\n  caption?: string\n  timestamp?: string\n  permalink?: string\n  comments?: { data?: RawIgComment[] }\n}\n\nexport async function fetchInstagramComments(params: {\n  igUserId: string\n  accessToken: string\n  limit?: number\n}): Promise<CommentFetchResult[]> {\n  try {\n    const limit = params.limit ?? 10\n    const url =\n      `${GRAPH_BASE}/${params.igUserId}/media` +\n      `?fields=id,caption,timestamp,permalink,comments{id,text,username,timestamp}` +\n      `&limit=${limit}` +\n      `&access_token=${encodeURIComponent(params.accessToken)}`\n\n    const payload = await fetchGraphJson(url)\n    const rawMedia = Array.isArray(payload.data)\n      ? (payload.data as RawIgMedia[])\n      : []\n\n    return rawMedia\n      .filter((media) => media.id != null)\n      .map((media): CommentFetchResult => {\n        const postUrl =\n          media.permalink ??\n          `https://www.instagram.com/p/${media.id}/`\n\n        const rawComments = media.comments?.data ?? []\n        const comments = rawComments.flatMap((c): CommentFetchResult['comments'] => {\n          if (!c.id || !c.text) return []\n          return [\n            {\n              commentId: c.id,\n              text: c.text,\n              authorName: c.username ?? 'Unknown',\n              authorHandle: c.username,\n              createdAt: c.timestamp,\n            },\n          ]\n        })\n\n        return {\n          platform: 'INSTAGRAM',\n          postUrl,\n          postContent: media.caption,\n          comments,\n        }\n      })\n      .filter((r) => r.comments.length > 0)\n  } catch {\n    return []\n  }\n}\n",
+        "numLines": 98,
+        "startLine": 1,
+        "totalLines": 98
+      }
+    },
+    "tool_use_id": "toolu_01AxJMELnMK2bvdVjwqWmB28",
+    "duration_ms": 13
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "ab271c4fac06c3966",
+    "agent_type": "everything-claude-code:code-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\comments\\tiktok.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\comments\\tiktok.ts",
+        "content": "import type { CommentFetchResult } from './types'\n\nconst TIKTOK_API_BASE = 'https://open.tiktokapis.com/v2'\n\nasync function fetchTikTokJson(url: string, accessToken: string): Promise<Record<string, unknown>> {\n  const response = await fetch(url, {\n    headers: {\n      Authorization: `Bearer ${accessToken}`,\n      'Content-Type': 'application/json',\n    },\n  })\n\n  const text = await response.text()\n  let payload: Record<string, unknown> = {}\n  try {\n    payload = text ? (JSON.parse(text) as Record<string, unknown>) : {}\n  } catch {\n    payload = {}\n  }\n\n  if (!response.ok) {\n    const errObj =\n      payload.error && typeof payload.error === 'object'\n        ? (payload.error as Record<string, unknown>)\n        : {}\n    const message =\n      (typeof errObj.message === 'string' && errObj.message) ||\n      text ||\n      `HTTP ${response.status}`\n    throw new Error(`TikTok API error: ${message}`)\n  }\n\n  return payload\n}\n\ninterface RawTikTokComment {\n  id?: string\n  text?: string\n  like_count?: number\n  create_time?: number\n  username?: string\n}\n\nexport async function fetchTikTokComments(params: {\n  accessToken: string\n  videoId: string\n  limit?: number\n}): Promise<CommentFetchResult> {\n  const postUrl = `https://www.tiktok.com/@video/video/${params.videoId}`\n  const empty: CommentFetchResult = {\n    platform: 'TIKTOK',\n    postUrl,\n    comments: [],\n  }\n\n  if (!params.videoId) return empty\n\n  try {\n    const maxCount = Math.min(params.limit ?? 50, 100)\n    const fields = 'id,text,like_count,create_time,username'\n    const url =\n      `${TIKTOK_API_BASE}/video/comment/list/` +\n      `?fields=${encodeURIComponent(fields)}` +\n      `&video_id=${encodeURIComponent(params.videoId)}` +\n      `&max_count=${maxCount}`\n\n    const payload = await fetchTikTokJson(url, params.accessToken)\n\n    // TikTok wraps response in { data: { comments: [...] } }\n    const dataObj =\n      payload.data && typeof payload.data === 'object'\n        ? (payload.data as Record<string, unknown>)\n        : {}\n\n    const rawComments = Array.isArray(dataObj.comments)\n      ? (dataObj.comments as RawTikTokComment[])\n      : Array.isArray(payload.comments)\n        ? (payload.comments as RawTikTokComment[])\n        : []\n\n    const comments = rawComments.flatMap((c): CommentFetchResult['comments'] => {\n      if (!c.id || !c.text) return []\n      return [\n        {\n          commentId: c.id,\n          text: c.text,\n          authorName: c.username ?? 'Unknown',\n          authorHandle: c.username ? `@${c.username}` : undefined,\n          createdAt: c.create_time\n            ? new Date(c.create_time * 1000).toISOString()\n            : undefined,\n        },\n      ]\n    })\n\n    return { ...empty, comments }\n  } catch {\n    return empty\n  }\n}\n",
+        "numLines": 101,
+        "startLine": 1,
+        "totalLines": 101
+      }
+    },
+    "tool_use_id": "toolu_01Nj6Yqkjy4T8NRq42oTUvPn",
+    "duration_ms": 1
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "ab271c4fac06c3966",
+    "agent_type": "everything-claude-code:code-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\comments\\[id]\\skip\\route.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\comments\\[id]\\skip\\route.ts",
+        "content": "import { NextRequest, NextResponse } from 'next/server'\nimport { prisma } from '@/lib/db'\nimport type { ApiResponse } from '@/types'\n\ninterface SkipResponseData {\n  opportunityId: string\n  status: string\n  updatedAt: string\n}\n\nexport async function POST(\n  _request: NextRequest,\n  { params }: { params: Promise<{ id: string }> }\n): Promise<NextResponse> {\n  const { id } = await params\n  const opportunity = await prisma.commentOpportunity.findUnique({\n    where: { id },\n  })\n\n  if (!opportunity) {\n    const response: ApiResponse<never> = {\n      success: false,\n      error: 'Comment opportunity not found',\n    }\n    return NextResponse.json(response, { status: 404 })\n  }\n\n  if (opportunity.status === 'POSTED') {\n    const response: ApiResponse<never> = {\n      success: false,\n      error: 'Cannot skip an already-posted opportunity',\n    }\n    return NextResponse.json(response, { status: 422 })\n  }\n\n  const updated = await prisma.commentOpportunity.update({\n    where: { id: id },\n    data: { status: 'SKIPPED' },\n  })\n\n  const response: ApiResponse<SkipResponseData> = {\n    success: true,\n    data: {\n      opportunityId: updated.id,\n      status: updated.status,\n      updatedAt: updated.updatedAt.toISOString(),\n    },\n  }\n\n  return NextResponse.json(response)\n}\n",
+        "numLines": 52,
+        "startLine": 1,
+        "totalLines": 52
+      }
+    },
+    "tool_use_id": "toolu_01Q6AZHUduXv2gpGQJ2gUXTb",
+    "duration_ms": 1
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "af5fb5e19db2e26a5",
+    "agent_type": "everything-claude-code:security-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd \"C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\" && grep -n \"requiresHumanReview\\|riskAssessment\\|status.*APPROVED\\|opportunity.status\" src/app/api/comments/[id]/post/route.ts"
+    },
+    "tool_response": {
+      "stdout": "",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false,
+      "returnCodeInterpretation": "No matches found",
+      "noOutputExpected": false
+    },
+    "tool_use_id": "toolu_01P7cYx3wjr7r2KdA8ov1uJq",
+    "duration_ms": 3123
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "ab271c4fac06c3966",
+    "agent_type": "everything-claude-code:code-reviewer",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\comments\\scan\\route.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\comments\\scan\\route.ts",
+        "content": "import { NextRequest, NextResponse } from 'next/server'\nimport { z } from 'zod'\nimport { scanCommentsForBrand } from '@/lib/comments'\nimport type { ApiResponse } from '@/types'\n\nconst ScanBodySchema = z.object({\n  brandId: z.string().min(1),\n  platforms: z.array(z.string()).optional(),\n  additionalUrls: z\n    .array(\n      z.object({\n        platform: z.string().min(1),\n        // Accepts a full post URL *or* a raw identifier (LinkedIn URN,\n        // TikTok video id), so this is validated as non-empty rather than a URL.\n        url: z.string().min(1),\n        relevanceNote: z.string().optional(),\n      })\n    )\n    .optional(),\n})\n\nexport async function POST(request: NextRequest): Promise<NextResponse> {\n  try {\n    const body: unknown = await request.json()\n    const parsed = ScanBodySchema.safeParse(body)\n\n    if (!parsed.success) {\n      const response: ApiResponse<never> = {\n        success: false,\n        error: parsed.error.issues.map((i) => i.message).join(', '),\n      }\n      return NextResponse.json(response, { status: 400 })\n    }\n\n    const result = await scanCommentsForBrand(parsed.data)\n\n    const response: ApiResponse<typeof result> = {\n      success: true,\n      data: result,\n    }\n    return NextResponse.json(response)\n  } catch (error) {\n    const response: ApiResponse<never> = {\n      success: false,\n      error: error instanceof Error ? error.message : 'Scan failed',\n    }\n    return NextResponse.json(response, { status: 500 })\n  }\n}\n",
+        "numLines": 50,
+        "startLine": 1,
+        "totalLines": 50
+      }
+    },
+    "tool_use_id": "toolu_01RQxKrq6kxeUZXpf39tcQzi",
+    "duration_ms": 1
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "a06d11128fcdd95f7",
+    "agent_type": "general-purpose",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\comments\\[id]\\approve\\route.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\comments\\[id]\\approve\\route.ts",
+        "content": "import { NextRequest, NextResponse } from 'next/server'\nimport { z } from 'zod'\nimport { prisma } from '@/lib/db'\nimport type { ApiResponse } from '@/types'\n\nconst approveSchema = z.object({\n  draftId: z.string().optional(),\n  customReply: z.string().min(1).max(10000).optional(),\n}).refine(\n  (data) => data.draftId !== undefined || data.customReply !== undefined,\n  { message: 'Either draftId or customReply must be provided' }\n)\n\ninterface ApproveResponseData {\n  opportunityId: string\n  approvedReply: string\n  status: string\n  updatedAt: string\n}\n\nexport async function POST(\n  request: NextRequest,\n  { params }: { params: Promise<{ id: string }> }\n): Promise<NextResponse> {\n  const { id } = await params\n  const opportunity = await prisma.commentOpportunity.findUnique({\n    where: { id },\n  })\n\n  if (!opportunity) {\n    const response: ApiResponse<never> = {\n      success: false,\n      error: 'Comment opportunity not found',\n    }\n    return NextResponse.json(response, { status: 404 })\n  }\n\n  let body: unknown\n  try {\n    body = await request.json()\n  } catch {\n    const response: ApiResponse<never> = { success: false, error: 'Invalid JSON body' }\n    return NextResponse.json(response, { status: 400 })\n  }\n\n  const parsed = approveSchema.safeParse(body)\n  if (!parsed.success) {\n    const response: ApiResponse<never> = {\n      success: false,\n      error: parsed.error.issues.map((i) => i.message).join(', '),\n    }\n    return NextResponse.json(response, { status: 422 })\n  }\n\n  const { draftId, customReply } = parsed.data\n  let approvedContent: string\n\n  if (draftId) {\n    const draft = await prisma.commentDraft.findUnique({\n      where: { id: draftId },\n    })\n\n    if (!draft || draft.opportunityId !== id) {\n      const response: ApiResponse<never> = {\n        success: false,\n        error: 'Draft not found for this opportunity',\n      }\n      return NextResponse.json(response, { status: 404 })\n    }\n\n    approvedContent = customReply ?? draft.content\n\n    // Mark this draft as approved\n    await prisma.commentDraft.update({\n      where: { id: draftId },\n      data: { isApproved: true },\n    })\n  } else {\n    // Manual custom reply \u00e2\u20ac\u201d no draft to mark\n    approvedContent = customReply as string\n  }\n\n  const updatedOpportunity = await prisma.commentOpportunity.update({\n    where: { id: id },\n    data: {\n      approvedReply: approvedContent,\n      status: 'APPROVED',\n    },\n  })\n\n  const response: ApiResponse<ApproveResponseData> = {\n    success: true,\n    data: {\n      opportunityId: updatedOpportunity.id,\n      approvedReply: approvedContent,\n      status: updatedOpportunity.status,\n      updatedAt: updatedOpportunity.updatedAt.toISOString(),\n    },\n  }\n\n  return NextResponse.json(response)\n}\n",
+        "numLines": 103,
+        "startLine": 1,
+        "totalLines": 103
+      }
+    },
+    "tool_use_id": "toolu_01FntJP2kQ8CXqx7WwTqrBob",
+    "duration_ms": 1
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "agent_id": "a06d11128fcdd95f7",
+    "agent_type": "general-purpose",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Glob",
+    "tool_input": {
+      "pattern": "{vercel.json,next.config.*,src/lib/brands.ts,src/types/index.ts}"
+    },
+    "tool_response": {
+      "filenames": [
+        "src\\lib\\brands.ts",
+        "src\\types\\index.ts",
+        "next.config.mjs"
+      ],
+      "durationMs": 216,
+      "numFiles": 3,
+      "truncated": false,
+      "totalMatches": 3,
+      "countIsComplete": true
+    },
+    "tool_use_id": "toolu_01HKQzpxA2doHEdsVnQb8eqc",
+    "duration_ms": 216
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "AskUserQuestion",
+    "tool_input": {
+      "questions": [
+        {
+          "question": "What auth model fits how this app will actually be used?",
+          "header": "Auth model",
+          "options": [
+            {
+              "label": "Single shared login (Recommended)",
+              "description": "One operator password + signed HttpOnly session cookie, enforced by middleware over the dashboard and all /api/* routes (OAuth callbacks + cron-with-secret excepted). Fast, no new infra, closes the CRITICAL hole now. We can upgrade to multi-user later. Best if it's just you (or a small trusted team sharing one login)."
+            },
+            {
+              "label": "Multi-user accounts",
+              "description": "Full NextAuth with a User model and per-user login. Enables per-user audit trail (who approved/posted a reply \u00e2\u20ac\u201d addresses the compliance gap) and real team access. Bigger lift, pairs naturally with the Postgres migration, and needs a User/Team data model. Best if multiple people need separate logins."
+            },
+            {
+              "label": "Just lock it down minimally",
+              "description": "HTTP Basic auth via middleware using an env username/password \u00e2\u20ac\u201d the absolute fastest way to stop anonymous access, no login UI. Ugly UX but unblocks a private pilot in minutes. Upgrade later."
+            }
+          ],
+          "multiSelect": false
+        }
+      ],
+      "answers": {
+        "What auth model fits how this app will actually be used?": "Single shared login (Recommended)"
+      },
+      "annotations": {}
+    },
+    "tool_response": {
+      "questions": [
+        {
+          "question": "What auth model fits how this app will actually be used?",
+          "header": "Auth model",
+          "options": [
+            {
+              "label": "Single shared login (Recommended)",
+              "description": "One operator password + signed HttpOnly session cookie, enforced by middleware over the dashboard and all /api/* routes (OAuth callbacks + cron-with-secret excepted). Fast, no new infra, closes the CRITICAL hole now. We can upgrade to multi-user later. Best if it's just you (or a small trusted team sharing one login)."
+            },
+            {
+              "label": "Multi-user accounts",
+              "description": "Full NextAuth with a User model and per-user login. Enables per-user audit trail (who approved/posted a reply \u00e2\u20ac\u201d addresses the compliance gap) and real team access. Bigger lift, pairs naturally with the Postgres migration, and needs a User/Team data model. Best if multiple people need separate logins."
+            },
+            {
+              "label": "Just lock it down minimally",
+              "description": "HTTP Basic auth via middleware using an env username/password \u00e2\u20ac\u201d the absolute fastest way to stop anonymous access, no login UI. Ugly UX but unblocks a private pilot in minutes. Upgrade later."
+            }
+          ],
+          "multiSelect": false
+        }
+      ],
+      "answers": {
+        "What auth model fits how this app will actually be used?": "Single shared login (Recommended)"
+      },
+      "annotations": {}
+    },
+    "tool_use_id": "toolu_016XqDEDTUnKE3JWgdkAEEyC",
+    "duration_ms": 1
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\cron\\route.ts"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\cron\\route.ts",
+        "content": "import { NextRequest, NextResponse } from 'next/server'\nimport { processScheduledPosts } from '@/lib/scheduler'\nimport type { ApiResponse } from '@/types'\n\ninterface CronResult {\n  processed: number\n  results: Array<{\n    postId: string\n    status: string\n    platformResults: Record<string, unknown>\n    error?: string\n  }>\n}\n\nasync function runScheduler(): Promise<NextResponse> {\n  const results = await processScheduledPosts()\n\n  const response: ApiResponse<CronResult> = {\n    success: true,\n    data: {\n      processed: results.length,\n      results,\n    },\n  }\n\n  return NextResponse.json(response)\n}\n\nexport async function GET(_request: NextRequest): Promise<NextResponse> {\n  return runScheduler()\n}\n\nexport async function POST(_request: NextRequest): Promise<NextResponse> {\n  return runScheduler()\n}\n",
+        "numLines": 36,
+        "startLine": 1,
+        "totalLines": 36
+      }
+    },
+    "tool_use_id": "toolu_01TaxNR8vfGerPAnjL8unx7w",
+    "duration_ms": 11
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\components\\sidebar-nav.tsx"
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\components\\sidebar-nav.tsx",
+        "content": "'use client'\n\nimport Link from 'next/link'\nimport { usePathname } from 'next/navigation'\nimport {\n  LayoutDashboard,\n  Sparkles,\n  CalendarPlus,\n  ClipboardList,\n  MessageSquare,\n  Link2,\n  Building2,\n} from 'lucide-react'\nimport clsx from 'clsx'\n\nconst NAV_ITEMS = [\n  { href: '/', label: 'Overview', icon: LayoutDashboard },\n  { href: '/create', label: 'Content Lab', icon: Sparkles },\n  { href: '/schedule', label: 'Schedule', icon: CalendarPlus },\n  { href: '/queue', label: 'Queue', icon: ClipboardList },\n  { href: '/comments', label: 'Comments', icon: MessageSquare },\n  { href: '/brands', label: 'Brands', icon: Building2 },\n  { href: '/connect', label: 'Connect', icon: Link2 },\n]\n\nexport function SidebarNav() {\n  const pathname = usePathname()\n\n  return (\n    <nav className=\"flex flex-col gap-1 px-3\">\n      {NAV_ITEMS.map((item) => {\n        const Icon = item.icon\n        const isActive =\n          item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)\n\n        return (\n          <Link\n            key={item.href}\n            href={item.href}\n            className={clsx(\n              'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',\n              isActive\n                ? 'bg-blue-600 text-white'\n                : 'text-slate-400 hover:text-white hover:bg-slate-700'\n            )}\n          >\n            <Icon size={18} strokeWidth={1.75} />\n            {item.label}\n          </Link>\n        )\n      })}\n    </nav>\n  )\n}\n",
+        "numLines": 55,
+        "startLine": 1,
+        "totalLines": 55
+      }
+    },
+    "tool_use_id": "toolu_0189bJL1YSmZS7YH4khedBQz",
+    "duration_ms": 12
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\auth.ts",
+      "content": "// Session auth for the single shared operator login.\n//\n// Uses the Web Crypto API only (no Node `crypto` import) so this module can be\n// imported from both the Edge middleware and Node route handlers. The session\n// is a stateless HMAC-signed token stored in an HttpOnly cookie.\n\nexport const SESSION_COOKIE = 'smg_session'\nexport const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30 // 30 days\n\nconst encoder = new TextEncoder()\n\nfunction getSecret(): string | null {\n  const secret = process.env.AUTH_SECRET\n  return secret && secret.length > 0 ? secret : null\n}\n\n/** True only when both the signing secret and the operator password are set. */\nexport function isAuthConfigured(): boolean {\n  return Boolean(getSecret() && process.env.APP_PASSWORD)\n}\n\nfunction bytesToBase64Url(bytes: Uint8Array): string {\n  let binary = ''\n  for (const b of bytes) binary += String.fromCharCode(b)\n  return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '')\n}\n\nfunction base64UrlToBytes(input: string): Uint8Array {\n  const b64 = input.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice((input.length + 3) % 4)\n  const binary = atob(b64)\n  const out = new Uint8Array(binary.length)\n  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i)\n  return out\n}\n\nasync function hmacKey(secret: string): Promise<CryptoKey> {\n  return crypto.subtle.importKey(\n    'raw',\n    encoder.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign', 'verify']\n  )\n}\n\ninterface SessionPayload {\n  iat: number\n  exp: number\n}\n\n/** Create a signed session token. Throws if AUTH_SECRET is not configured. */\nexport async function createSessionToken(): Promise<string> {\n  const secret = getSecret()\n  if (!secret) throw new Error('AUTH_SECRET is not configured')\n\n  const now = Date.now()\n  const payload: SessionPayload = { iat: now, exp: now + SESSION_MAX_AGE_SECONDS * 1000 }\n  const payloadB64 = bytesToBase64Url(encoder.encode(JSON.stringify(payload)))\n\n  const key = await hmacKey(secret)\n  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadB64))\n\n  return `${payloadB64}.${bytesToBase64Url(new Uint8Array(signature))}`\n}\n\n/** Verify a session token's signature and expiry. Returns false on any problem. */\nexport async function verifySessionToken(token: string | undefined | null): Promise<boolean> {\n  const secret = getSecret()\n  if (!secret || !token) return false\n\n  const parts = token.split('.')\n  if (parts.length !== 2) return false\n  const [payloadB64, signatureB64] = parts\n\n  try {\n    const key = await hmacKey(secret)\n    const valid = await crypto.subtle.verify(\n      'HMAC',\n      key,\n      base64UrlToBytes(signatureB64),\n      encoder.encode(payloadB64)\n    )\n    if (!valid) return false\n\n    const payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payloadB64))) as SessionPayload\n    return typeof payload.exp === 'number' && payload.exp > Date.now()\n  } catch {\n    return false\n  }\n}\n\n/** Constant-time comparison of the supplied password against APP_PASSWORD. */\nexport function verifyPassword(input: string): boolean {\n  const expected = process.env.APP_PASSWORD\n  if (!expected || expected.length === 0) return false\n\n  const a = encoder.encode(input)\n  const b = encoder.encode(expected)\n  if (a.length !== b.length) return false\n\n  let diff = 0\n  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i]\n  return diff === 0\n}\n"
+    },
+    "tool_response": {
+      "type": "create",
+      "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\auth.ts",
+      "content": "// Session auth for the single shared operator login.\n//\n// Uses the Web Crypto API only (no Node `crypto` import) so this module can be\n// imported from both the Edge middleware and Node route handlers. The session\n// is a stateless HMAC-signed token stored in an HttpOnly cookie.\n\nexport const SESSION_COOKIE = 'smg_session'\nexport const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30 // 30 days\n\nconst encoder = new TextEncoder()\n\nfunction getSecret(): string | null {\n  const secret = process.env.AUTH_SECRET\n  return secret && secret.length > 0 ? secret : null\n}\n\n/** True only when both the signing secret and the operator password are set. */\nexport function isAuthConfigured(): boolean {\n  return Boolean(getSecret() && process.env.APP_PASSWORD)\n}\n\nfunction bytesToBase64Url(bytes: Uint8Array): string {\n  let binary = ''\n  for (const b of bytes) binary += String.fromCharCode(b)\n  return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '')\n}\n\nfunction base64UrlToBytes(input: string): Uint8Array {\n  const b64 = input.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice((input.length + 3) % 4)\n  const binary = atob(b64)\n  const out = new Uint8Array(binary.length)\n  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i)\n  return out\n}\n\nasync function hmacKey(secret: string): Promise<CryptoKey> {\n  return crypto.subtle.importKey(\n    'raw',\n    encoder.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign', 'verify']\n  )\n}\n\ninterface SessionPayload {\n  iat: number\n  exp: number\n}\n\n/** Create a signed session token. Throws if AUTH_SECRET is not configured. */\nexport async function createSessionToken(): Promise<string> {\n  const secret = getSecret()\n  if (!secret) throw new Error('AUTH_SECRET is not configured')\n\n  const now = Date.now()\n  const payload: SessionPayload = { iat: now, exp: now + SESSION_MAX_AGE_SECONDS * 1000 }\n  const payloadB64 = bytesToBase64Url(encoder.encode(JSON.stringify(payload)))\n\n  const key = await hmacKey(secret)\n  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadB64))\n\n  return `${payloadB64}.${bytesToBase64Url(new Uint8Array(signature))}`\n}\n\n/** Verify a session token's signature and expiry. Returns false on any problem. */\nexport async function verifySessionToken(token: string | undefined | null): Promise<boolean> {\n  const secret = getSecret()\n  if (!secret || !token) return false\n\n  const parts = token.split('.')\n  if (parts.length !== 2) return false\n  const [payloadB64, signatureB64] = parts\n\n  try {\n    const key = await hmacKey(secret)\n    const valid = await crypto.subtle.verify(\n      'HMAC',\n      key,\n      base64UrlToBytes(signatureB64),\n      encoder.encode(payloadB64)\n    )\n    if (!valid) return false\n\n    const payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payloadB64))) as SessionPayload\n    return typeof payload.exp === 'number' && payload.exp > Date.now()\n  } catch {\n    return false\n  }\n}\n\n/** Constant-time comparison of the supplied password against APP_PASSWORD. */\nexport function verifyPassword(input: string): boolean {\n  const expected = process.env.APP_PASSWORD\n  if (!expected || expected.length === 0) return false\n\n  const a = encoder.encode(input)\n  const b = encoder.encode(expected)\n  if (a.length !== b.length) return false\n\n  let diff = 0\n  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i]\n  return diff === 0\n}\n",
+      "structuredPatch": [],
+      "originalFile": null,
+      "userModified": false
+    },
+    "tool_use_id": "toolu_0128Wz7amErBiRd3TNTkWu3M",
+    "duration_ms": 20
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\middleware.ts",
+      "content": "import { NextResponse, type NextRequest } from 'next/server'\nimport { SESSION_COOKIE, verifySessionToken } from '@/lib/auth'\n\n// Paths reachable without a session. Everything else requires the operator login.\n// - /login + /api/auth/login: the login surface itself.\n// - /api/cron: authenticates itself with CRON_SECRET (called by an external\n//   scheduler that has no session cookie), so it's excluded here and guarded\n//   inside the route handler.\nconst PUBLIC_PATHS = new Set(['/login', '/api/auth/login', '/api/cron'])\n\nexport async function middleware(request: NextRequest): Promise<NextResponse> {\n  const { pathname } = request.nextUrl\n\n  if (PUBLIC_PATHS.has(pathname)) {\n    return NextResponse.next()\n  }\n\n  const token = request.cookies.get(SESSION_COOKIE)?.value\n  if (await verifySessionToken(token)) {\n    return NextResponse.next()\n  }\n\n  // Unauthenticated: API routes get a JSON 401; page routes redirect to /login.\n  if (pathname.startsWith('/api/')) {\n    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })\n  }\n\n  const loginUrl = new URL('/login', request.url)\n  return NextResponse.redirect(loginUrl)\n}\n\nexport const config = {\n  // Run on all routes except Next internals and static image assets.\n  matcher: [\n    '/((?!_next/static|_next/image|favicon.ico|.*\\\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',\n  ],\n}\n"
+    },
+    "tool_response": {
+      "type": "create",
+      "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\middleware.ts",
+      "content": "import { NextResponse, type NextRequest } from 'next/server'\nimport { SESSION_COOKIE, verifySessionToken } from '@/lib/auth'\n\n// Paths reachable without a session. Everything else requires the operator login.\n// - /login + /api/auth/login: the login surface itself.\n// - /api/cron: authenticates itself with CRON_SECRET (called by an external\n//   scheduler that has no session cookie), so it's excluded here and guarded\n//   inside the route handler.\nconst PUBLIC_PATHS = new Set(['/login', '/api/auth/login', '/api/cron'])\n\nexport async function middleware(request: NextRequest): Promise<NextResponse> {\n  const { pathname } = request.nextUrl\n\n  if (PUBLIC_PATHS.has(pathname)) {\n    return NextResponse.next()\n  }\n\n  const token = request.cookies.get(SESSION_COOKIE)?.value\n  if (await verifySessionToken(token)) {\n    return NextResponse.next()\n  }\n\n  // Unauthenticated: API routes get a JSON 401; page routes redirect to /login.\n  if (pathname.startsWith('/api/')) {\n    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })\n  }\n\n  const loginUrl = new URL('/login', request.url)\n  return NextResponse.redirect(loginUrl)\n}\n\nexport const config = {\n  // Run on all routes except Next internals and static image assets.\n  matcher: [\n    '/((?!_next/static|_next/image|favicon.ico|.*\\\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',\n  ],\n}\n",
+      "structuredPatch": [],
+      "originalFile": null,
+      "userModified": false
+    },
+    "tool_use_id": "toolu_01Fff7Mh9DWGVmdmaHaYMuJ3",
+    "duration_ms": 11
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\auth\\login\\route.ts",
+      "content": "import { NextRequest, NextResponse } from 'next/server'\nimport { z } from 'zod'\nimport {\n  createSessionToken,\n  isAuthConfigured,\n  verifyPassword,\n  SESSION_COOKIE,\n  SESSION_MAX_AGE_SECONDS,\n} from '@/lib/auth'\nimport type { ApiResponse } from '@/types'\n\nconst BodySchema = z.object({ password: z.string().min(1) })\n\nexport async function POST(request: NextRequest): Promise<NextResponse> {\n  if (!isAuthConfigured()) {\n    const response: ApiResponse<never> = {\n      success: false,\n      error: 'Auth is not configured. Set AUTH_SECRET and APP_PASSWORD in the environment.',\n    }\n    return NextResponse.json(response, { status: 500 })\n  }\n\n  let body: unknown\n  try {\n    body = await request.json()\n  } catch {\n    body = null\n  }\n\n  const parsed = BodySchema.safeParse(body)\n  if (!parsed.success) {\n    const response: ApiResponse<never> = { success: false, error: 'Password is required' }\n    return NextResponse.json(response, { status: 400 })\n  }\n\n  if (!verifyPassword(parsed.data.password)) {\n    const response: ApiResponse<never> = { success: false, error: 'Incorrect password' }\n    return NextResponse.json(response, { status: 401 })\n  }\n\n  const token = await createSessionToken()\n  const response: ApiResponse<never> = { success: true }\n  const res = NextResponse.json(response)\n  res.cookies.set(SESSION_COOKIE, token, {\n    httpOnly: true,\n    secure: process.env.NODE_ENV === 'production',\n    sameSite: 'lax',\n    path: '/',\n    maxAge: SESSION_MAX_AGE_SECONDS,\n  })\n  return res\n}\n"
+    },
+    "tool_response": {
+      "type": "create",
+      "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\auth\\login\\route.ts",
+      "content": "import { NextRequest, NextResponse } from 'next/server'\nimport { z } from 'zod'\nimport {\n  createSessionToken,\n  isAuthConfigured,\n  verifyPassword,\n  SESSION_COOKIE,\n  SESSION_MAX_AGE_SECONDS,\n} from '@/lib/auth'\nimport type { ApiResponse } from '@/types'\n\nconst BodySchema = z.object({ password: z.string().min(1) })\n\nexport async function POST(request: NextRequest): Promise<NextResponse> {\n  if (!isAuthConfigured()) {\n    const response: ApiResponse<never> = {\n      success: false,\n      error: 'Auth is not configured. Set AUTH_SECRET and APP_PASSWORD in the environment.',\n    }\n    return NextResponse.json(response, { status: 500 })\n  }\n\n  let body: unknown\n  try {\n    body = await request.json()\n  } catch {\n    body = null\n  }\n\n  const parsed = BodySchema.safeParse(body)\n  if (!parsed.success) {\n    const response: ApiResponse<never> = { success: false, error: 'Password is required' }\n    return NextResponse.json(response, { status: 400 })\n  }\n\n  if (!verifyPassword(parsed.data.password)) {\n    const response: ApiResponse<never> = { success: false, error: 'Incorrect password' }\n    return NextResponse.json(response, { status: 401 })\n  }\n\n  const token = await createSessionToken()\n  const response: ApiResponse<never> = { success: true }\n  const res = NextResponse.json(response)\n  res.cookies.set(SESSION_COOKIE, token, {\n    httpOnly: true,\n    secure: process.env.NODE_ENV === 'production',\n    sameSite: 'lax',\n    path: '/',\n    maxAge: SESSION_MAX_AGE_SECONDS,\n  })\n  return res\n}\n",
+      "structuredPatch": [],
+      "originalFile": null,
+      "userModified": false
+    },
+    "tool_use_id": "toolu_011XQEeXZufLRCo6kqJj7ZfE",
+    "duration_ms": 30
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\auth\\logout\\route.ts",
+      "content": "import { NextResponse } from 'next/server'\nimport { SESSION_COOKIE } from '@/lib/auth'\nimport type { ApiResponse } from '@/types'\n\nexport async function POST(): Promise<NextResponse> {\n  const response: ApiResponse<never> = { success: true }\n  const res = NextResponse.json(response)\n  res.cookies.set(SESSION_COOKIE, '', {\n    httpOnly: true,\n    secure: process.env.NODE_ENV === 'production',\n    sameSite: 'lax',\n    path: '/',\n    maxAge: 0,\n  })\n  return res\n}\n"
+    },
+    "tool_response": {
+      "type": "create",
+      "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\auth\\logout\\route.ts",
+      "content": "import { NextResponse } from 'next/server'\nimport { SESSION_COOKIE } from '@/lib/auth'\nimport type { ApiResponse } from '@/types'\n\nexport async function POST(): Promise<NextResponse> {\n  const response: ApiResponse<never> = { success: true }\n  const res = NextResponse.json(response)\n  res.cookies.set(SESSION_COOKIE, '', {\n    httpOnly: true,\n    secure: process.env.NODE_ENV === 'production',\n    sameSite: 'lax',\n    path: '/',\n    maxAge: 0,\n  })\n  return res\n}\n",
+      "structuredPatch": [],
+      "originalFile": null,
+      "userModified": false
+    },
+    "tool_use_id": "toolu_01ShzXJ1wBKVLrbZitfhyd5G",
+    "duration_ms": 16
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\login\\page.tsx",
+      "content": "'use client'\n\nimport { useState } from 'react'\nimport { useRouter } from 'next/navigation'\nimport { Lock } from 'lucide-react'\n\nexport default function LoginPage() {\n  const router = useRouter()\n  const [password, setPassword] = useState('')\n  const [error, setError] = useState<string | null>(null)\n  const [submitting, setSubmitting] = useState(false)\n\n  async function handleSubmit(e: React.FormEvent) {\n    e.preventDefault()\n    setError(null)\n    setSubmitting(true)\n    try {\n      const res = await fetch('/api/auth/login', {\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json' },\n        body: JSON.stringify({ password }),\n      })\n      const json = await res.json()\n      if (!json.success) throw new Error(json.error ?? 'Login failed')\n      router.push('/')\n      router.refresh()\n    } catch (err) {\n      setError(err instanceof Error ? err.message : 'Login failed')\n    } finally {\n      setSubmitting(false)\n    }\n  }\n\n  return (\n    <div className=\"min-h-screen flex items-center justify-center bg-slate-950 p-4\">\n      <div className=\"w-full max-w-sm\">\n        <div className=\"flex flex-col items-center mb-6\">\n          <div className=\"w-11 h-11 rounded-lg bg-blue-600 flex items-center justify-center mb-3\">\n            <Lock size={20} className=\"text-white\" />\n          </div>\n          <h1 className=\"text-lg font-bold text-white\">SMG Social Hub</h1>\n          <p className=\"text-sm text-slate-500 mt-0.5\">Sign in to continue</p>\n        </div>\n\n        <form\n          onSubmit={handleSubmit}\n          className=\"bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4 shadow-xl\"\n        >\n          <div>\n            <label className=\"block text-xs font-medium text-slate-400 mb-1.5\">Password</label>\n            <input\n              type=\"password\"\n              value={password}\n              onChange={(e) => setPassword(e.target.value)}\n              autoFocus\n              required\n              placeholder=\"Enter operator password\"\n              className=\"w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-md px-3 py-2.5 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500\"\n            />\n          </div>\n\n          {error && (\n            <p className=\"text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded px-3 py-2\">\n              {error}\n            </p>\n          )}\n\n          <button\n            type=\"submit\"\n            disabled={submitting || !password}\n            className=\"w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-md px-4 py-2.5 transition-colors\"\n          >\n            {submitting ? 'Signing in\u00e2\u20ac\u00a6' : 'Sign in'}\n          </button>\n        </form>\n      </div>\n    </div>\n  )\n}\n"
+    },
+    "tool_response": {
+      "type": "create",
+      "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\login\\page.tsx",
+      "content": "'use client'\n\nimport { useState } from 'react'\nimport { useRouter } from 'next/navigation'\nimport { Lock } from 'lucide-react'\n\nexport default function LoginPage() {\n  const router = useRouter()\n  const [password, setPassword] = useState('')\n  const [error, setError] = useState<string | null>(null)\n  const [submitting, setSubmitting] = useState(false)\n\n  async function handleSubmit(e: React.FormEvent) {\n    e.preventDefault()\n    setError(null)\n    setSubmitting(true)\n    try {\n      const res = await fetch('/api/auth/login', {\n        method: 'POST',\n        headers: { 'Content-Type': 'application/json' },\n        body: JSON.stringify({ password }),\n      })\n      const json = await res.json()\n      if (!json.success) throw new Error(json.error ?? 'Login failed')\n      router.push('/')\n      router.refresh()\n    } catch (err) {\n      setError(err instanceof Error ? err.message : 'Login failed')\n    } finally {\n      setSubmitting(false)\n    }\n  }\n\n  return (\n    <div className=\"min-h-screen flex items-center justify-center bg-slate-950 p-4\">\n      <div className=\"w-full max-w-sm\">\n        <div className=\"flex flex-col items-center mb-6\">\n          <div className=\"w-11 h-11 rounded-lg bg-blue-600 flex items-center justify-center mb-3\">\n            <Lock size={20} className=\"text-white\" />\n          </div>\n          <h1 className=\"text-lg font-bold text-white\">SMG Social Hub</h1>\n          <p className=\"text-sm text-slate-500 mt-0.5\">Sign in to continue</p>\n        </div>\n\n        <form\n          onSubmit={handleSubmit}\n          className=\"bg-slate-900 border border-slate-800 rounded-xl p-6 space-y-4 shadow-xl\"\n        >\n          <div>\n            <label className=\"block text-xs font-medium text-slate-400 mb-1.5\">Password</label>\n            <input\n              type=\"password\"\n              value={password}\n              onChange={(e) => setPassword(e.target.value)}\n              autoFocus\n              required\n              placeholder=\"Enter operator password\"\n              className=\"w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-md px-3 py-2.5 placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500\"\n            />\n          </div>\n\n          {error && (\n            <p className=\"text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded px-3 py-2\">\n              {error}\n            </p>\n          )}\n\n          <button\n            type=\"submit\"\n            disabled={submitting || !password}\n            className=\"w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-md px-4 py-2.5 transition-colors\"\n          >\n            {submitting ? 'Signing in\u00e2\u20ac\u00a6' : 'Sign in'}\n          </button>\n        </form>\n      </div>\n    </div>\n  )\n}\n",
+      "structuredPatch": [],
+      "originalFile": null,
+      "userModified": false
+    },
+    "tool_use_id": "toolu_01WoYifyuzwFvRACa4t2V2hn",
+    "duration_ms": 23
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\cron\\route.ts",
+      "old_string": "async function runScheduler(): Promise<NextResponse> {\n  const results = await processScheduledPosts()\n\n  const response: ApiResponse<CronResult> = {\n    success: true,\n    data: {\n      processed: results.length,\n      results,\n    },\n  }\n\n  return NextResponse.json(response)\n}\n\nexport async function GET(_request: NextRequest): Promise<NextResponse> {\n  return runScheduler()\n}\n\nexport async function POST(_request: NextRequest): Promise<NextResponse> {\n  return runScheduler()\n}",
+      "new_string": "// This endpoint is excluded from the session middleware because it's called by\n// an external scheduler (e.g. Vercel Cron) with no session cookie. It guards\n// itself with a shared secret instead: callers must send the CRON_SECRET either\n// as `Authorization: Bearer <secret>` or `?secret=<secret>`.\nfunction isAuthorized(request: NextRequest): boolean {\n  const secret = process.env.CRON_SECRET\n  if (!secret) return false // fail closed: unconfigured secret means no access\n\n  const authHeader = request.headers.get('authorization')\n  if (authHeader === `Bearer ${secret}`) return true\n\n  return request.nextUrl.searchParams.get('secret') === secret\n}\n\nasync function runScheduler(request: NextRequest): Promise<NextResponse> {\n  if (!isAuthorized(request)) {\n    const response: ApiResponse<never> = { success: false, error: 'Unauthorized' }\n    return NextResponse.json(response, { status: 401 })\n  }\n\n  const results = await processScheduledPosts()\n\n  const response: ApiResponse<CronResult> = {\n    success: true,\n    data: {\n      processed: results.length,\n      results,\n    },\n  }\n\n  return NextResponse.json(response)\n}\n\nexport async function GET(request: NextRequest): Promise<NextResponse> {\n  return runScheduler(request)\n}\n\nexport async function POST(request: NextRequest): Promise<NextResponse> {\n  return runScheduler(request)\n}",
+      "replace_all": false
+    },
+    "tool_response": {
+      "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\app\\api\\cron\\route.ts",
+      "oldString": "async function runScheduler(): Promise<NextResponse> {\n  const results = await processScheduledPosts()\n\n  const response: ApiResponse<CronResult> = {\n    success: true,\n    data: {\n      processed: results.length,\n      results,\n    },\n  }\n\n  return NextResponse.json(response)\n}\n\nexport async function GET(_request: NextRequest): Promise<NextResponse> {\n  return runScheduler()\n}\n\nexport async function POST(_request: NextRequest): Promise<NextResponse> {\n  return runScheduler()\n}",
+      "newString": "// This endpoint is excluded from the session middleware because it's called by\n// an external scheduler (e.g. Vercel Cron) with no session cookie. It guards\n// itself with a shared secret instead: callers must send the CRON_SECRET either\n// as `Authorization: Bearer <secret>` or `?secret=<secret>`.\nfunction isAuthorized(request: NextRequest): boolean {\n  const secret = process.env.CRON_SECRET\n  if (!secret) return false // fail closed: unconfigured secret means no access\n\n  const authHeader = request.headers.get('authorization')\n  if (authHeader === `Bearer ${secret}`) return true\n\n  return request.nextUrl.searchParams.get('secret') === secret\n}\n\nasync function runScheduler(request: NextRequest): Promise<NextResponse> {\n  if (!isAuthorized(request)) {\n    const response: ApiResponse<never> = { success: false, error: 'Unauthorized' }\n    return NextResponse.json(response, { status: 401 })\n  }\n\n  const results = await processScheduledPosts()\n\n  const response: ApiResponse<CronResult> = {\n    success: true,\n    data: {\n      processed: results.length,\n      results,\n    },\n  }\n\n  return NextResponse.json(response)\n}\n\nexport async function GET(request: NextRequest): Promise<NextResponse> {\n  return runScheduler(request)\n}\n\nexport async function POST(request: NextRequest): Promise<NextResponse> {\n  return runScheduler(request)\n}",
+      "originalFile": "import { NextRequest, NextResponse } from 'next/server'\nimport { processScheduledPosts } from '@/lib/scheduler'\nimport type { ApiResponse } from '@/types'\n\ninterface CronResult {\n  processed: number\n  results: Array<{\n    postId: string\n    status: string\n    platformResults: Record<string, unknown>\n    error?: string\n  }>\n}\n\nasync function runScheduler(): Promise<NextResponse> {\n  const results = await processScheduledPosts()\n\n  const response: ApiResponse<CronResult> = {\n    success: true,\n    data: {\n      processed: results.length,\n      results,\n    },\n  }\n\n  return NextResponse.json(response)\n}\n\nexport async function GET(_request: NextRequest): Promise<NextResponse> {\n  return runScheduler()\n}\n\nexport async function POST(_request: NextRequest): Promise<NextResponse> {\n  return runScheduler()\n}\n",
+      "structuredPatch": [
+        {
+          "oldStart": 12,
+          "oldLines": 7,
+          "newStart": 12,
+          "newLines": 26,
+          "lines": [
+            "   }>",
+            " }",
+            " ",
+            "-async function runScheduler(): Promise<NextResponse> {",
+            "+// This endpoint is excluded from the session middleware because it's called by",
+            "+// an external scheduler (e.g. Vercel Cron) with no session cookie. It guards",
+            "+// itself with a shared secret instead: callers must send the CRON_SECRET either",
+            "+// as `Authorization: Bearer <secret>` or `?secret=<secret>`.",
+            "+function isAuthorized(request: NextRequest): boolean {",
+            "+  const secret = process.env.CRON_SECRET",
+            "+  if (!secret) return false // fail closed: unconfigured secret means no access",
+            "+",
+            "+  const authHeader = request.headers.get('authorization')",
+            "+  if (authHeader === `Bearer ${secret}`) return true",
+            "+",
+            "+  return request.nextUrl.searchParams.get('secret') === secret",
+            "+}",
+            "+",
+            "+async function runScheduler(request: NextRequest): Promise<NextResponse> {",
+            "+  if (!isAuthorized(request)) {",
+            "+    const response: ApiResponse<never> = { success: false, error: 'Unauthorized' }",
+            "+    return NextResponse.json(response, { status: 401 })",
+            "+  }",
+            "+",
+            "   const results = await processScheduledPosts()",
+            " ",
+            "   const response: ApiResponse<CronResult> = {"
+          ]
+        },
+        {
+          "oldStart": 26,
+          "oldLines": 10,
+          "newStart": 45,
+          "newLines": 10,
+          "lines": [
+            "   return NextResponse.json(response)",
+            " }",
+            " ",
+            "-export async function GET(_request: NextRequest): Promise<NextResponse> {",
+            "-  return runScheduler()",
+            "+export async function GET(request: NextRequest): Promise<NextResponse> {",
+            "+  return runScheduler(request)",
+            " }",
+            " ",
+            "-export async function POST(_request: NextRequest): Promise<NextResponse> {",
+            "-  return runScheduler()",
+            "+export async function POST(request: NextRequest): Promise<NextResponse> {",
+            "+  return runScheduler(request)",
+            " }"
+          ]
+        }
+      ],
+      "userModified": false,
+      "replaceAll": false
+    },
+    "tool_use_id": "toolu_018RyM7KdDN3uxq8kDfRHb9E",
+    "duration_ms": 18
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\components\\sidebar-nav.tsx",
+      "old_string": "import Link from 'next/link'\nimport { usePathname } from 'next/navigation'\nimport {\n  LayoutDashboard,\n  Sparkles,\n  CalendarPlus,\n  ClipboardList,\n  MessageSquare,\n  Link2,\n  Building2,\n} from 'lucide-react'\nimport clsx from 'clsx'",
+      "new_string": "import Link from 'next/link'\nimport { usePathname, useRouter } from 'next/navigation'\nimport { useState } from 'react'\nimport {\n  LayoutDashboard,\n  Sparkles,\n  CalendarPlus,\n  ClipboardList,\n  MessageSquare,\n  Link2,\n  Building2,\n  LogOut,\n} from 'lucide-react'\nimport clsx from 'clsx'",
+      "replace_all": false
+    },
+    "tool_response": {
+      "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\components\\sidebar-nav.tsx",
+      "oldString": "import Link from 'next/link'\nimport { usePathname } from 'next/navigation'\nimport {\n  LayoutDashboard,\n  Sparkles,\n  CalendarPlus,\n  ClipboardList,\n  MessageSquare,\n  Link2,\n  Building2,\n} from 'lucide-react'\nimport clsx from 'clsx'",
+      "newString": "import Link from 'next/link'\nimport { usePathname, useRouter } from 'next/navigation'\nimport { useState } from 'react'\nimport {\n  LayoutDashboard,\n  Sparkles,\n  CalendarPlus,\n  ClipboardList,\n  MessageSquare,\n  Link2,\n  Building2,\n  LogOut,\n} from 'lucide-react'\nimport clsx from 'clsx'",
+      "originalFile": "'use client'\n\nimport Link from 'next/link'\nimport { usePathname } from 'next/navigation'\nimport {\n  LayoutDashboard,\n  Sparkles,\n  CalendarPlus,\n  ClipboardList,\n  MessageSquare,\n  Link2,\n  Building2,\n} from 'lucide-react'\nimport clsx from 'clsx'\n\nconst NAV_ITEMS = [\n  { href: '/', label: 'Overview', icon: LayoutDashboard },\n  { href: '/create', label: 'Content Lab', icon: Sparkles },\n  { href: '/schedule', label: 'Schedule', icon: CalendarPlus },\n  { href: '/queue', label: 'Queue', icon: ClipboardList },\n  { href: '/comments', label: 'Comments', icon: MessageSquare },\n  { href: '/brands', label: 'Brands', icon: Building2 },\n  { href: '/connect', label: 'Connect', icon: Link2 },\n]\n\nexport function SidebarNav() {\n  const pathname = usePathname()\n\n  return (\n    <nav className=\"flex flex-col gap-1 px-3\">\n      {NAV_ITEMS.map((item) => {\n        const Icon = item.icon\n        const isActive =\n          item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)\n\n        return (\n          <Link\n            key={item.href}\n            href={item.href}\n            className={clsx(\n              'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',\n              isActive\n                ? 'bg-blue-600 text-white'\n                : 'text-slate-400 hover:text-white hover:bg-slate-700'\n            )}\n          >\n            <Icon size={18} strokeWidth={1.75} />\n            {item.label}\n          </Link>\n        )\n      })}\n    </nav>\n  )\n}\n",
+      "structuredPatch": [
+        {
+          "oldStart": 1,
+          "oldLines": 7,
+          "newStart": 1,
+          "newLines": 8,
+          "lines": [
+            " 'use client'",
+            " ",
+            " import Link from 'next/link'",
+            "-import { usePathname } from 'next/navigation'",
+            "+import { usePathname, useRouter } from 'next/navigation'",
+            "+import { useState } from 'react'",
+            " import {",
+            "   LayoutDashboard,",
+            "   Sparkles,"
+          ]
+        },
+        {
+          "oldStart": 10,
+          "oldLines": 6,
+          "newStart": 11,
+          "newLines": 7,
+          "lines": [
+            "   MessageSquare,",
+            "   Link2,",
+            "   Building2,",
+            "+  LogOut,",
+            " } from 'lucide-react'",
+            " import clsx from 'clsx'",
+            " "
+          ]
+        }
+      ],
+      "userModified": false,
+      "replaceAll": false
+    },
+    "tool_use_id": "toolu_01VxDJvwMZLwRAsuQCot2EPb",
+    "duration_ms": 16
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\components\\sidebar-nav.tsx",
+      "old_string": "export function SidebarNav() {\n  const pathname = usePathname()\n\n  return (\n    <nav className=\"flex flex-col gap-1 px-3\">\n      {NAV_ITEMS.map((item) => {\n        const Icon = item.icon\n        const isActive =\n          item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)\n\n        return (\n          <Link\n            key={item.href}\n            href={item.href}\n            className={clsx(\n              'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',\n              isActive\n                ? 'bg-blue-600 text-white'\n                : 'text-slate-400 hover:text-white hover:bg-slate-700'\n            )}\n          >\n            <Icon size={18} strokeWidth={1.75} />\n            {item.label}\n          </Link>\n        )\n      })}\n    </nav>\n  )\n}",
+      "new_string": "export function SidebarNav() {\n  const pathname = usePathname()\n  const router = useRouter()\n  const [loggingOut, setLoggingOut] = useState(false)\n\n  async function handleLogout() {\n    setLoggingOut(true)\n    try {\n      await fetch('/api/auth/logout', { method: 'POST' })\n    } finally {\n      router.push('/login')\n      router.refresh()\n    }\n  }\n\n  return (\n    <nav className=\"flex flex-col gap-1 px-3\">\n      {NAV_ITEMS.map((item) => {\n        const Icon = item.icon\n        const isActive =\n          item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)\n\n        return (\n          <Link\n            key={item.href}\n            href={item.href}\n            className={clsx(\n              'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',\n              isActive\n                ? 'bg-blue-600 text-white'\n                : 'text-slate-400 hover:text-white hover:bg-slate-700'\n            )}\n          >\n            <Icon size={18} strokeWidth={1.75} />\n            {item.label}\n          </Link>\n        )\n      })}\n\n      <button\n        onClick={handleLogout}\n        disabled={loggingOut}\n        className=\"mt-2 pt-2 border-t border-slate-800 flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700 transition-colors disabled:opacity-50\"\n      >\n        <LogOut size={18} strokeWidth={1.75} />\n        {loggingOut ? 'Signing out\u00e2\u20ac\u00a6' : 'Sign out'}\n      </button>\n    </nav>\n  )\n}",
+      "replace_all": false
+    },
+    "tool_response": {
+      "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\components\\sidebar-nav.tsx",
+      "oldString": "export function SidebarNav() {\n  const pathname = usePathname()\n\n  return (\n    <nav className=\"flex flex-col gap-1 px-3\">\n      {NAV_ITEMS.map((item) => {\n        const Icon = item.icon\n        const isActive =\n          item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)\n\n        return (\n          <Link\n            key={item.href}\n            href={item.href}\n            className={clsx(\n              'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',\n              isActive\n                ? 'bg-blue-600 text-white'\n                : 'text-slate-400 hover:text-white hover:bg-slate-700'\n            )}\n          >\n            <Icon size={18} strokeWidth={1.75} />\n            {item.label}\n          </Link>\n        )\n      })}\n    </nav>\n  )\n}",
+      "newString": "export function SidebarNav() {\n  const pathname = usePathname()\n  const router = useRouter()\n  const [loggingOut, setLoggingOut] = useState(false)\n\n  async function handleLogout() {\n    setLoggingOut(true)\n    try {\n      await fetch('/api/auth/logout', { method: 'POST' })\n    } finally {\n      router.push('/login')\n      router.refresh()\n    }\n  }\n\n  return (\n    <nav className=\"flex flex-col gap-1 px-3\">\n      {NAV_ITEMS.map((item) => {\n        const Icon = item.icon\n        const isActive =\n          item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)\n\n        return (\n          <Link\n            key={item.href}\n            href={item.href}\n            className={clsx(\n              'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',\n              isActive\n                ? 'bg-blue-600 text-white'\n                : 'text-slate-400 hover:text-white hover:bg-slate-700'\n            )}\n          >\n            <Icon size={18} strokeWidth={1.75} />\n            {item.label}\n          </Link>\n        )\n      })}\n\n      <button\n        onClick={handleLogout}\n        disabled={loggingOut}\n        className=\"mt-2 pt-2 border-t border-slate-800 flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700 transition-colors disabled:opacity-50\"\n      >\n        <LogOut size={18} strokeWidth={1.75} />\n        {loggingOut ? 'Signing out\u00e2\u20ac\u00a6' : 'Sign out'}\n      </button>\n    </nav>\n  )\n}",
+      "originalFile": "'use client'\n\nimport Link from 'next/link'\nimport { usePathname, useRouter } from 'next/navigation'\nimport { useState } from 'react'\nimport {\n  LayoutDashboard,\n  Sparkles,\n  CalendarPlus,\n  ClipboardList,\n  MessageSquare,\n  Link2,\n  Building2,\n  LogOut,\n} from 'lucide-react'\nimport clsx from 'clsx'\n\nconst NAV_ITEMS = [\n  { href: '/', label: 'Overview', icon: LayoutDashboard },\n  { href: '/create', label: 'Content Lab', icon: Sparkles },\n  { href: '/schedule', label: 'Schedule', icon: CalendarPlus },\n  { href: '/queue', label: 'Queue', icon: ClipboardList },\n  { href: '/comments', label: 'Comments', icon: MessageSquare },\n  { href: '/brands', label: 'Brands', icon: Building2 },\n  { href: '/connect', label: 'Connect', icon: Link2 },\n]\n\nexport function SidebarNav() {\n  const pathname = usePathname()\n\n  return (\n    <nav className=\"flex flex-col gap-1 px-3\">\n      {NAV_ITEMS.map((item) => {\n        const Icon = item.icon\n        const isActive =\n          item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)\n\n        return (\n          <Link\n            key={item.href}\n            href={item.href}\n            className={clsx(\n              'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',\n              isActive\n                ? 'bg-blue-600 text-white'\n                : 'text-slate-400 hover:text-white hover:bg-slate-700'\n            )}\n          >\n            <Icon size={18} strokeWidth={1.75} />\n            {item.label}\n          </Link>\n        )\n      })}\n    </nav>\n  )\n}\n",
+      "structuredPatch": [
+        {
+          "oldStart": 27,
+          "oldLines": 7,
+          "newStart": 27,
+          "newLines": 19,
+          "lines": [
+            " ",
+            " export function SidebarNav() {",
+            "   const pathname = usePathname()",
+            "+  const router = useRouter()",
+            "+  const [loggingOut, setLoggingOut] = useState(false)",
+            " ",
+            "+  async function handleLogout() {",
+            "+    setLoggingOut(true)",
+            "+    try {",
+            "+      await fetch('/api/auth/logout', { method: 'POST' })",
+            "+    } finally {",
+            "+      router.push('/login')",
+            "+      router.refresh()",
+            "+    }",
+            "+  }",
+            "+",
+            "   return (",
+            "     <nav className=\"flex flex-col gap-1 px-3\">",
+            "       {NAV_ITEMS.map((item) => {"
+          ]
+        },
+        {
+          "oldStart": 51,
+          "oldLines": 6,
+          "newStart": 63,
+          "newLines": 15,
+          "lines": [
+            "           </Link>",
+            "         )",
+            "       })}",
+            "+",
+            "+      <button",
+            "+        onClick={handleLogout}",
+            "+        disabled={loggingOut}",
+            "+        className=\"mt-2 pt-2 border-t border-slate-800 flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700 transition-colors disabled:opacity-50\"",
+            "+      >",
+            "+        <LogOut size={18} strokeWidth={1.75} />",
+            "+        {loggingOut ? 'Signing out\u00e2\u20ac\u00a6' : 'Sign out'}",
+            "+      </button>",
+            "     </nav>",
+            "   )",
+            " }"
+          ]
+        }
+      ],
+      "userModified": false,
+      "replaceAll": false
+    },
+    "tool_use_id": "toolu_01Q8AtEzQ3bWqbbCB6RjVoT2",
+    "duration_ms": 14
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\auth.test.ts",
+      "content": "import { describe, it, expect } from 'vitest'\nimport {\n  createSessionToken,\n  verifySessionToken,\n  verifyPassword,\n  isAuthConfigured,\n} from './auth'\n\nprocess.env.AUTH_SECRET = 'test-secret-abc'\nprocess.env.APP_PASSWORD = 'hunter2'\n\n// Independent signer mirroring auth.ts, used to forge tokens (e.g. expired /\n// wrong-secret) that a fresh createSessionToken can't produce.\nfunction b64url(bytes: Uint8Array): string {\n  let binary = ''\n  for (const b of bytes) binary += String.fromCharCode(b)\n  return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '')\n}\n\nasync function sign(payload: object, secret: string): Promise<string> {\n  const enc = new TextEncoder()\n  const payloadB64 = b64url(enc.encode(JSON.stringify(payload)))\n  const key = await crypto.subtle.importKey(\n    'raw',\n    enc.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign']\n  )\n  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payloadB64))\n  return `${payloadB64}.${b64url(new Uint8Array(sig))}`\n}\n\ndescribe('session tokens', () => {\n  it('verifies a freshly created token', async () => {\n    const token = await createSessionToken()\n    expect(await verifySessionToken(token)).toBe(true)\n  })\n\n  it('rejects a token signed with a different secret', async () => {\n    const forged = await sign({ iat: Date.now(), exp: Date.now() + 100000 }, 'wrong-secret')\n    expect(await verifySessionToken(forged)).toBe(false)\n  })\n\n  it('rejects an expired token even when correctly signed', async () => {\n    const expired = await sign({ iat: Date.now() - 200000, exp: Date.now() - 1000 }, 'test-secret-abc')\n    expect(await verifySessionToken(expired)).toBe(false)\n  })\n\n  it('rejects a token whose payload was tampered with', async () => {\n    const token = await createSessionToken()\n    const [payload, sig] = token.split('.')\n    // flip the first payload char to a different base64url char\n    const tampered = `${payload[0] === 'A' ? 'B' : 'A'}${payload.slice(1)}.${sig}`\n    expect(await verifySessionToken(tampered)).toBe(false)\n  })\n\n  it('rejects malformed, empty, and missing tokens', async () => {\n    expect(await verifySessionToken('not-a-token')).toBe(false)\n    expect(await verifySessionToken('')).toBe(false)\n    expect(await verifySessionToken(undefined)).toBe(false)\n    expect(await verifySessionToken(null)).toBe(false)\n  })\n})\n\ndescribe('verifyPassword', () => {\n  it('accepts the correct password', () => {\n    expect(verifyPassword('hunter2')).toBe(true)\n  })\n\n  it('rejects an incorrect password', () => {\n    expect(verifyPassword('wrong')).toBe(false)\n    expect(verifyPassword('hunter2 ')).toBe(false) // trailing space \u00e2\u2020\u2019 different length\n    expect(verifyPassword('')).toBe(false)\n  })\n\n  it('rejects everything when APP_PASSWORD is unset', () => {\n    const saved = process.env.APP_PASSWORD\n    delete process.env.APP_PASSWORD\n    expect(verifyPassword('hunter2')).toBe(false)\n    process.env.APP_PASSWORD = saved\n  })\n})\n\ndescribe('isAuthConfigured', () => {\n  it('is true when both secret and password are set', () => {\n    expect(isAuthConfigured()).toBe(true)\n  })\n\n  it('is false when the signing secret is missing', () => {\n    const saved = process.env.AUTH_SECRET\n    delete process.env.AUTH_SECRET\n    expect(isAuthConfigured()).toBe(false)\n    process.env.AUTH_SECRET = saved\n  })\n})\n"
+    },
+    "tool_response": {
+      "type": "create",
+      "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\auth.test.ts",
+      "content": "import { describe, it, expect } from 'vitest'\nimport {\n  createSessionToken,\n  verifySessionToken,\n  verifyPassword,\n  isAuthConfigured,\n} from './auth'\n\nprocess.env.AUTH_SECRET = 'test-secret-abc'\nprocess.env.APP_PASSWORD = 'hunter2'\n\n// Independent signer mirroring auth.ts, used to forge tokens (e.g. expired /\n// wrong-secret) that a fresh createSessionToken can't produce.\nfunction b64url(bytes: Uint8Array): string {\n  let binary = ''\n  for (const b of bytes) binary += String.fromCharCode(b)\n  return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '')\n}\n\nasync function sign(payload: object, secret: string): Promise<string> {\n  const enc = new TextEncoder()\n  const payloadB64 = b64url(enc.encode(JSON.stringify(payload)))\n  const key = await crypto.subtle.importKey(\n    'raw',\n    enc.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign']\n  )\n  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payloadB64))\n  return `${payloadB64}.${b64url(new Uint8Array(sig))}`\n}\n\ndescribe('session tokens', () => {\n  it('verifies a freshly created token', async () => {\n    const token = await createSessionToken()\n    expect(await verifySessionToken(token)).toBe(true)\n  })\n\n  it('rejects a token signed with a different secret', async () => {\n    const forged = await sign({ iat: Date.now(), exp: Date.now() + 100000 }, 'wrong-secret')\n    expect(await verifySessionToken(forged)).toBe(false)\n  })\n\n  it('rejects an expired token even when correctly signed', async () => {\n    const expired = await sign({ iat: Date.now() - 200000, exp: Date.now() - 1000 }, 'test-secret-abc')\n    expect(await verifySessionToken(expired)).toBe(false)\n  })\n\n  it('rejects a token whose payload was tampered with', async () => {\n    const token = await createSessionToken()\n    const [payload, sig] = token.split('.')\n    // flip the first payload char to a different base64url char\n    const tampered = `${payload[0] === 'A' ? 'B' : 'A'}${payload.slice(1)}.${sig}`\n    expect(await verifySessionToken(tampered)).toBe(false)\n  })\n\n  it('rejects malformed, empty, and missing tokens', async () => {\n    expect(await verifySessionToken('not-a-token')).toBe(false)\n    expect(await verifySessionToken('')).toBe(false)\n    expect(await verifySessionToken(undefined)).toBe(false)\n    expect(await verifySessionToken(null)).toBe(false)\n  })\n})\n\ndescribe('verifyPassword', () => {\n  it('accepts the correct password', () => {\n    expect(verifyPassword('hunter2')).toBe(true)\n  })\n\n  it('rejects an incorrect password', () => {\n    expect(verifyPassword('wrong')).toBe(false)\n    expect(verifyPassword('hunter2 ')).toBe(false) // trailing space \u00e2\u2020\u2019 different length\n    expect(verifyPassword('')).toBe(false)\n  })\n\n  it('rejects everything when APP_PASSWORD is unset', () => {\n    const saved = process.env.APP_PASSWORD\n    delete process.env.APP_PASSWORD\n    expect(verifyPassword('hunter2')).toBe(false)\n    process.env.APP_PASSWORD = saved\n  })\n})\n\ndescribe('isAuthConfigured', () => {\n  it('is true when both secret and password are set', () => {\n    expect(isAuthConfigured()).toBe(true)\n  })\n\n  it('is false when the signing secret is missing', () => {\n    const saved = process.env.AUTH_SECRET\n    delete process.env.AUTH_SECRET\n    expect(isAuthConfigured()).toBe(false)\n    process.env.AUTH_SECRET = saved\n  })\n})\n",
+      "structuredPatch": [],
+      "originalFile": null,
+      "userModified": false
+    },
+    "tool_use_id": "toolu_019EtU2eZawmoVKFuKZoYDgT",
+    "duration_ms": 12
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd '/c/Users/OliverProductions/Desktop/2.DEVELOPMENT Work/SMG-Social-Hub' && echo '=== TESTS ===' && npx vitest run 2>&1 | tail -12; echo \"TEST_EXIT: ${PIPESTATUS[0]}\" && echo '=== TSC ===' && npx tsc --noEmit 2>&1 | tail -15; echo \"TSC_EXIT: ${PIPESTATUS[0]}\"",
+      "timeout": 120000,
+      "description": "Run tests and typecheck for auth"
+    },
+    "tool_response": {
+      "stdout": "=== TESTS ===\n\n RUN  v4.1.10 C:/Users/OliverProductions/Desktop/2.DEVELOPMENT Work/SMG-Social-Hub\n\n\n Test Files  4 passed (4)\n      Tests  45 passed (45)\n   Start at  09:08:50\n   Duration  773ms (transform 162ms, setup 0ms, import 229ms, tests 21ms, environment 0ms)\n\nTEST_EXIT: 0\n=== TSC ===\nsrc/lib/auth.ts(80,7): error TS2345: Argument of type 'Uint8Array<ArrayBufferLike>' is not assignable to parameter of type 'BufferSource'.\r\n  Type 'Uint8Array<ArrayBufferLike>' is not assignable to type 'ArrayBufferView<ArrayBuffer>'.\r\n    Types of property 'buffer' are incompatible.\r\n      Type 'ArrayBufferLike' is not assignable to type 'ArrayBuffer'.\r\n        Type 'SharedArrayBuffer' is missing the following properties from type 'ArrayBuffer': resizable, resize, detached, transfer, transferToFixedLength\r\nTSC_EXIT: 2",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false,
+      "noOutputExpected": false
+    },
+    "tool_use_id": "toolu_01WfbPX6UkXpwu7zAEm3j4oJ",
+    "duration_ms": 9905
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\auth.ts",
+      "old_string": "  return crypto.subtle.importKey(\n    'raw',\n    encoder.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign', 'verify']\n  )",
+      "new_string": "  return crypto.subtle.importKey(\n    'raw',\n    encoder.encode(secret) as BufferSource,\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign', 'verify']\n  )",
+      "replace_all": false
+    },
+    "tool_response": {
+      "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\auth.ts",
+      "oldString": "  return crypto.subtle.importKey(\n    'raw',\n    encoder.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign', 'verify']\n  )",
+      "newString": "  return crypto.subtle.importKey(\n    'raw',\n    encoder.encode(secret) as BufferSource,\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign', 'verify']\n  )",
+      "originalFile": "// Session auth for the single shared operator login.\n//\n// Uses the Web Crypto API only (no Node `crypto` import) so this module can be\n// imported from both the Edge middleware and Node route handlers. The session\n// is a stateless HMAC-signed token stored in an HttpOnly cookie.\n\nexport const SESSION_COOKIE = 'smg_session'\nexport const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30 // 30 days\n\nconst encoder = new TextEncoder()\n\nfunction getSecret(): string | null {\n  const secret = process.env.AUTH_SECRET\n  return secret && secret.length > 0 ? secret : null\n}\n\n/** True only when both the signing secret and the operator password are set. */\nexport function isAuthConfigured(): boolean {\n  return Boolean(getSecret() && process.env.APP_PASSWORD)\n}\n\nfunction bytesToBase64Url(bytes: Uint8Array): string {\n  let binary = ''\n  for (const b of bytes) binary += String.fromCharCode(b)\n  return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '')\n}\n\nfunction base64UrlToBytes(input: string): Uint8Array {\n  const b64 = input.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice((input.length + 3) % 4)\n  const binary = atob(b64)\n  const out = new Uint8Array(binary.length)\n  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i)\n  return out\n}\n\nasync function hmacKey(secret: string): Promise<CryptoKey> {\n  return crypto.subtle.importKey(\n    'raw',\n    encoder.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign', 'verify']\n  )\n}\n\ninterface SessionPayload {\n  iat: number\n  exp: number\n}\n\n/** Create a signed session token. Throws if AUTH_SECRET is not configured. */\nexport async function createSessionToken(): Promise<string> {\n  const secret = getSecret()\n  if (!secret) throw new Error('AUTH_SECRET is not configured')\n\n  const now = Date.now()\n  const payload: SessionPayload = { iat: now, exp: now + SESSION_MAX_AGE_SECONDS * 1000 }\n  const payloadB64 = bytesToBase64Url(encoder.encode(JSON.stringify(payload)))\n\n  const key = await hmacKey(secret)\n  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadB64))\n\n  return `${payloadB64}.${bytesToBase64Url(new Uint8Array(signature))}`\n}\n\n/** Verify a session token's signature and expiry. Returns false on any problem. */\nexport async function verifySessionToken(token: string | undefined | null): Promise<boolean> {\n  const secret = getSecret()\n  if (!secret || !token) return false\n\n  const parts = token.split('.')\n  if (parts.length !== 2) return false\n  const [payloadB64, signatureB64] = parts\n\n  try {\n    const key = await hmacKey(secret)\n    const valid = await crypto.subtle.verify(\n      'HMAC',\n      key,\n      base64UrlToBytes(signatureB64),\n      encoder.encode(payloadB64)\n    )\n    if (!valid) return false\n\n    const payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payloadB64))) as SessionPayload\n    return typeof payload.exp === 'number' && payload.exp > Date.now()\n  } catch {\n    return false\n  }\n}\n\n/** Constant-time comparison of the supplied password against APP_PASSWORD. */\nexport function verifyPassword(input: string): boolean {\n  const expected = process.env.APP_PASSWORD\n  if (!expected || expected.length === 0) return false\n\n  const a = encoder.encode(input)\n  const b = encoder.encode(expected)\n  if (a.length !== b.length) return false\n\n  let diff = 0\n  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i]\n  return diff === 0\n}\n",
+      "structuredPatch": [
+        {
+          "oldStart": 36,
+          "oldLines": 7,
+          "newStart": 36,
+          "newLines": 7,
+          "lines": [
+            " async function hmacKey(secret: string): Promise<CryptoKey> {",
+            "   return crypto.subtle.importKey(",
+            "     'raw',",
+            "-    encoder.encode(secret),",
+            "+    encoder.encode(secret) as BufferSource,",
+            "     { name: 'HMAC', hash: 'SHA-256' },",
+            "     false,",
+            "     ['sign', 'verify']"
+          ]
+        }
+      ],
+      "userModified": false,
+      "replaceAll": false
+    },
+    "tool_use_id": "toolu_01QKjCNMfc9pehQpQF3y9ysW",
+    "duration_ms": 14
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\auth.ts",
+      "old_string": "  const key = await hmacKey(secret)\n  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadB64))",
+      "new_string": "  const key = await hmacKey(secret)\n  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadB64) as BufferSource)",
+      "replace_all": false
+    },
+    "tool_response": {
+      "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\auth.ts",
+      "oldString": "  const key = await hmacKey(secret)\n  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadB64))",
+      "newString": "  const key = await hmacKey(secret)\n  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadB64) as BufferSource)",
+      "originalFile": "// Session auth for the single shared operator login.\n//\n// Uses the Web Crypto API only (no Node `crypto` import) so this module can be\n// imported from both the Edge middleware and Node route handlers. The session\n// is a stateless HMAC-signed token stored in an HttpOnly cookie.\n\nexport const SESSION_COOKIE = 'smg_session'\nexport const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30 // 30 days\n\nconst encoder = new TextEncoder()\n\nfunction getSecret(): string | null {\n  const secret = process.env.AUTH_SECRET\n  return secret && secret.length > 0 ? secret : null\n}\n\n/** True only when both the signing secret and the operator password are set. */\nexport function isAuthConfigured(): boolean {\n  return Boolean(getSecret() && process.env.APP_PASSWORD)\n}\n\nfunction bytesToBase64Url(bytes: Uint8Array): string {\n  let binary = ''\n  for (const b of bytes) binary += String.fromCharCode(b)\n  return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '')\n}\n\nfunction base64UrlToBytes(input: string): Uint8Array {\n  const b64 = input.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice((input.length + 3) % 4)\n  const binary = atob(b64)\n  const out = new Uint8Array(binary.length)\n  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i)\n  return out\n}\n\nasync function hmacKey(secret: string): Promise<CryptoKey> {\n  return crypto.subtle.importKey(\n    'raw',\n    encoder.encode(secret) as BufferSource,\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign', 'verify']\n  )\n}\n\ninterface SessionPayload {\n  iat: number\n  exp: number\n}\n\n/** Create a signed session token. Throws if AUTH_SECRET is not configured. */\nexport async function createSessionToken(): Promise<string> {\n  const secret = getSecret()\n  if (!secret) throw new Error('AUTH_SECRET is not configured')\n\n  const now = Date.now()\n  const payload: SessionPayload = { iat: now, exp: now + SESSION_MAX_AGE_SECONDS * 1000 }\n  const payloadB64 = bytesToBase64Url(encoder.encode(JSON.stringify(payload)))\n\n  const key = await hmacKey(secret)\n  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadB64))\n\n  return `${payloadB64}.${bytesToBase64Url(new Uint8Array(signature))}`\n}\n\n/** Verify a session token's signature and expiry. Returns false on any problem. */\nexport async function verifySessionToken(token: string | undefined | null): Promise<boolean> {\n  const secret = getSecret()\n  if (!secret || !token) return false\n\n  const parts = token.split('.')\n  if (parts.length !== 2) return false\n  const [payloadB64, signatureB64] = parts\n\n  try {\n    const key = await hmacKey(secret)\n    const valid = await crypto.subtle.verify(\n      'HMAC',\n      key,\n      base64UrlToBytes(signatureB64),\n      encoder.encode(payloadB64)\n    )\n    if (!valid) return false\n\n    const payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payloadB64))) as SessionPayload\n    return typeof payload.exp === 'number' && payload.exp > Date.now()\n  } catch {\n    return false\n  }\n}\n\n/** Constant-time comparison of the supplied password against APP_PASSWORD. */\nexport function verifyPassword(input: string): boolean {\n  const expected = process.env.APP_PASSWORD\n  if (!expected || expected.length === 0) return false\n\n  const a = encoder.encode(input)\n  const b = encoder.encode(expected)\n  if (a.length !== b.length) return false\n\n  let diff = 0\n  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i]\n  return diff === 0\n}\n",
+      "structuredPatch": [
+        {
+          "oldStart": 58,
+          "oldLines": 7,
+          "newStart": 58,
+          "newLines": 7,
+          "lines": [
+            "   const payloadB64 = bytesToBase64Url(encoder.encode(JSON.stringify(payload)))",
+            " ",
+            "   const key = await hmacKey(secret)",
+            "-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadB64))",
+            "+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadB64) as BufferSource)",
+            " ",
+            "   return `${payloadB64}.${bytesToBase64Url(new Uint8Array(signature))}`",
+            " }"
+          ]
+        }
+      ],
+      "userModified": false,
+      "replaceAll": false
+    },
+    "tool_use_id": "toolu_01ESkRuDHHQU8sA6GvKCcQi6",
+    "duration_ms": 16
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\auth.ts",
+      "old_string": "    const valid = await crypto.subtle.verify(\n      'HMAC',\n      key,\n      base64UrlToBytes(signatureB64),\n      encoder.encode(payloadB64)\n    )",
+      "new_string": "    const valid = await crypto.subtle.verify(\n      'HMAC',\n      key,\n      base64UrlToBytes(signatureB64) as BufferSource,\n      encoder.encode(payloadB64) as BufferSource\n    )",
+      "replace_all": false
+    },
+    "tool_response": {
+      "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\auth.ts",
+      "oldString": "    const valid = await crypto.subtle.verify(\n      'HMAC',\n      key,\n      base64UrlToBytes(signatureB64),\n      encoder.encode(payloadB64)\n    )",
+      "newString": "    const valid = await crypto.subtle.verify(\n      'HMAC',\n      key,\n      base64UrlToBytes(signatureB64) as BufferSource,\n      encoder.encode(payloadB64) as BufferSource\n    )",
+      "originalFile": "// Session auth for the single shared operator login.\n//\n// Uses the Web Crypto API only (no Node `crypto` import) so this module can be\n// imported from both the Edge middleware and Node route handlers. The session\n// is a stateless HMAC-signed token stored in an HttpOnly cookie.\n\nexport const SESSION_COOKIE = 'smg_session'\nexport const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30 // 30 days\n\nconst encoder = new TextEncoder()\n\nfunction getSecret(): string | null {\n  const secret = process.env.AUTH_SECRET\n  return secret && secret.length > 0 ? secret : null\n}\n\n/** True only when both the signing secret and the operator password are set. */\nexport function isAuthConfigured(): boolean {\n  return Boolean(getSecret() && process.env.APP_PASSWORD)\n}\n\nfunction bytesToBase64Url(bytes: Uint8Array): string {\n  let binary = ''\n  for (const b of bytes) binary += String.fromCharCode(b)\n  return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '')\n}\n\nfunction base64UrlToBytes(input: string): Uint8Array {\n  const b64 = input.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice((input.length + 3) % 4)\n  const binary = atob(b64)\n  const out = new Uint8Array(binary.length)\n  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i)\n  return out\n}\n\nasync function hmacKey(secret: string): Promise<CryptoKey> {\n  return crypto.subtle.importKey(\n    'raw',\n    encoder.encode(secret) as BufferSource,\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign', 'verify']\n  )\n}\n\ninterface SessionPayload {\n  iat: number\n  exp: number\n}\n\n/** Create a signed session token. Throws if AUTH_SECRET is not configured. */\nexport async function createSessionToken(): Promise<string> {\n  const secret = getSecret()\n  if (!secret) throw new Error('AUTH_SECRET is not configured')\n\n  const now = Date.now()\n  const payload: SessionPayload = { iat: now, exp: now + SESSION_MAX_AGE_SECONDS * 1000 }\n  const payloadB64 = bytesToBase64Url(encoder.encode(JSON.stringify(payload)))\n\n  const key = await hmacKey(secret)\n  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payloadB64) as BufferSource)\n\n  return `${payloadB64}.${bytesToBase64Url(new Uint8Array(signature))}`\n}\n\n/** Verify a session token's signature and expiry. Returns false on any problem. */\nexport async function verifySessionToken(token: string | undefined | null): Promise<boolean> {\n  const secret = getSecret()\n  if (!secret || !token) return false\n\n  const parts = token.split('.')\n  if (parts.length !== 2) return false\n  const [payloadB64, signatureB64] = parts\n\n  try {\n    const key = await hmacKey(secret)\n    const valid = await crypto.subtle.verify(\n      'HMAC',\n      key,\n      base64UrlToBytes(signatureB64),\n      encoder.encode(payloadB64)\n    )\n    if (!valid) return false\n\n    const payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(payloadB64))) as SessionPayload\n    return typeof payload.exp === 'number' && payload.exp > Date.now()\n  } catch {\n    return false\n  }\n}\n\n/** Constant-time comparison of the supplied password against APP_PASSWORD. */\nexport function verifyPassword(input: string): boolean {\n  const expected = process.env.APP_PASSWORD\n  if (!expected || expected.length === 0) return false\n\n  const a = encoder.encode(input)\n  const b = encoder.encode(expected)\n  if (a.length !== b.length) return false\n\n  let diff = 0\n  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i]\n  return diff === 0\n}\n",
+      "structuredPatch": [
+        {
+          "oldStart": 77,
+          "oldLines": 8,
+          "newStart": 77,
+          "newLines": 8,
+          "lines": [
+            "     const valid = await crypto.subtle.verify(",
+            "       'HMAC',",
+            "       key,",
+            "-      base64UrlToBytes(signatureB64),",
+            "-      encoder.encode(payloadB64)",
+            "+      base64UrlToBytes(signatureB64) as BufferSource,",
+            "+      encoder.encode(payloadB64) as BufferSource",
+            "     )",
+            "     if (!valid) return false",
+            " "
+          ]
+        }
+      ],
+      "userModified": false,
+      "replaceAll": false
+    },
+    "tool_use_id": "toolu_01PSMJ8HHiFfDGUnhkZwKjmv",
+    "duration_ms": 11
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\auth.test.ts",
+      "old_string": "  const key = await crypto.subtle.importKey(\n    'raw',\n    enc.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign']\n  )\n  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payloadB64))",
+      "new_string": "  const key = await crypto.subtle.importKey(\n    'raw',\n    enc.encode(secret) as BufferSource,\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign']\n  )\n  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payloadB64) as BufferSource)",
+      "replace_all": false
+    },
+    "tool_response": {
+      "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\src\\lib\\auth.test.ts",
+      "oldString": "  const key = await crypto.subtle.importKey(\n    'raw',\n    enc.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign']\n  )\n  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payloadB64))",
+      "newString": "  const key = await crypto.subtle.importKey(\n    'raw',\n    enc.encode(secret) as BufferSource,\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign']\n  )\n  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payloadB64) as BufferSource)",
+      "originalFile": "import { describe, it, expect } from 'vitest'\nimport {\n  createSessionToken,\n  verifySessionToken,\n  verifyPassword,\n  isAuthConfigured,\n} from './auth'\n\nprocess.env.AUTH_SECRET = 'test-secret-abc'\nprocess.env.APP_PASSWORD = 'hunter2'\n\n// Independent signer mirroring auth.ts, used to forge tokens (e.g. expired /\n// wrong-secret) that a fresh createSessionToken can't produce.\nfunction b64url(bytes: Uint8Array): string {\n  let binary = ''\n  for (const b of bytes) binary += String.fromCharCode(b)\n  return btoa(binary).replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '')\n}\n\nasync function sign(payload: object, secret: string): Promise<string> {\n  const enc = new TextEncoder()\n  const payloadB64 = b64url(enc.encode(JSON.stringify(payload)))\n  const key = await crypto.subtle.importKey(\n    'raw',\n    enc.encode(secret),\n    { name: 'HMAC', hash: 'SHA-256' },\n    false,\n    ['sign']\n  )\n  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payloadB64))\n  return `${payloadB64}.${b64url(new Uint8Array(sig))}`\n}\n\ndescribe('session tokens', () => {\n  it('verifies a freshly created token', async () => {\n    const token = await createSessionToken()\n    expect(await verifySessionToken(token)).toBe(true)\n  })\n\n  it('rejects a token signed with a different secret', async () => {\n    const forged = await sign({ iat: Date.now(), exp: Date.now() + 100000 }, 'wrong-secret')\n    expect(await verifySessionToken(forged)).toBe(false)\n  })\n\n  it('rejects an expired token even when correctly signed', async () => {\n    const expired = await sign({ iat: Date.now() - 200000, exp: Date.now() - 1000 }, 'test-secret-abc')\n    expect(await verifySessionToken(expired)).toBe(false)\n  })\n\n  it('rejects a token whose payload was tampered with', async () => {\n    const token = await createSessionToken()\n    const [payload, sig] = token.split('.')\n    // flip the first payload char to a different base64url char\n    const tampered = `${payload[0] === 'A' ? 'B' : 'A'}${payload.slice(1)}.${sig}`\n    expect(await verifySessionToken(tampered)).toBe(false)\n  })\n\n  it('rejects malformed, empty, and missing tokens', async () => {\n    expect(await verifySessionToken('not-a-token')).toBe(false)\n    expect(await verifySessionToken('')).toBe(false)\n    expect(await verifySessionToken(undefined)).toBe(false)\n    expect(await verifySessionToken(null)).toBe(false)\n  })\n})\n\ndescribe('verifyPassword', () => {\n  it('accepts the correct password', () => {\n    expect(verifyPassword('hunter2')).toBe(true)\n  })\n\n  it('rejects an incorrect password', () => {\n    expect(verifyPassword('wrong')).toBe(false)\n    expect(verifyPassword('hunter2 ')).toBe(false) // trailing space \u00e2\u2020\u2019 different length\n    expect(verifyPassword('')).toBe(false)\n  })\n\n  it('rejects everything when APP_PASSWORD is unset', () => {\n    const saved = process.env.APP_PASSWORD\n    delete process.env.APP_PASSWORD\n    expect(verifyPassword('hunter2')).toBe(false)\n    process.env.APP_PASSWORD = saved\n  })\n})\n\ndescribe('isAuthConfigured', () => {\n  it('is true when both secret and password are set', () => {\n    expect(isAuthConfigured()).toBe(true)\n  })\n\n  it('is false when the signing secret is missing', () => {\n    const saved = process.env.AUTH_SECRET\n    delete process.env.AUTH_SECRET\n    expect(isAuthConfigured()).toBe(false)\n    process.env.AUTH_SECRET = saved\n  })\n})\n",
+      "structuredPatch": [
+        {
+          "oldStart": 22,
+          "oldLines": 12,
+          "newStart": 22,
+          "newLines": 12,
+          "lines": [
+            "   const payloadB64 = b64url(enc.encode(JSON.stringify(payload)))",
+            "   const key = await crypto.subtle.importKey(",
+            "     'raw',",
+            "-    enc.encode(secret),",
+            "+    enc.encode(secret) as BufferSource,",
+            "     { name: 'HMAC', hash: 'SHA-256' },",
+            "     false,",
+            "     ['sign']",
+            "   )",
+            "-  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payloadB64))",
+            "+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payloadB64) as BufferSource)",
+            "   return `${payloadB64}.${b64url(new Uint8Array(sig))}`",
+            " }",
+            " "
+          ]
+        }
+      ],
+      "userModified": false,
+      "replaceAll": false
+    },
+    "tool_use_id": "toolu_017dEUa4FeEuP9keDRBu27ZB",
+    "duration_ms": 19
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd '/c/Users/OliverProductions/Desktop/2.DEVELOPMENT Work/SMG-Social-Hub' && echo '=== TSC ===' && npx tsc --noEmit 2>&1 | tail -15; echo \"TSC_EXIT: ${PIPESTATUS[0]}\" && echo '=== BUILD ===' && npm run build 2>&1 | tail -25; echo \"BUILD_EXIT: ${PIPESTATUS[0]}\"",
+      "timeout": 300000,
+      "description": "Typecheck and build with auth"
+    },
+    "tool_response": {
+      "stdout": "=== TSC ===\nTSC_EXIT: 0\n=== BUILD ===\n\u00e2\u201d\u0153 \u00c6\u2019 /api/oauth/tiktok/callback             203 B         \u001b[37m\u001b[1m102 kB\u001b[22m\u001b[39m\n\u00e2\u201d\u0153 \u00c6\u2019 /api/publish                           203 B         \u001b[37m\u001b[1m102 kB\u001b[22m\u001b[39m\n\u00e2\u201d\u0153 \u00c6\u2019 /api/schedule                          203 B         \u001b[37m\u001b[1m102 kB\u001b[22m\u001b[39m\n\u00e2\u201d\u0153 \u00c6\u2019 /api/schedule/[id]                     203 B         \u001b[37m\u001b[1m102 kB\u001b[22m\u001b[39m\n\u00e2\u201d\u0153 \u00c6\u2019 /api/schedule/retry/[id]               203 B         \u001b[37m\u001b[1m102 kB\u001b[22m\u001b[39m\n\u00e2\u201d\u0153 \u00c6\u2019 /api/seed                              203 B         \u001b[37m\u001b[1m102 kB\u001b[22m\u001b[39m\n\u00e2\u201d\u0153 \u00e2\u2014\u2039 /brands                              5.39 kB         \u001b[37m\u001b[1m108 kB\u001b[22m\u001b[39m\n\u00e2\u201d\u0153 \u00e2\u2014\u2039 /comments                             6.6 kB         \u001b[37m\u001b[1m109 kB\u001b[22m\u001b[39m\n\u00e2\u201d\u0153 \u00c6\u2019 /comments/[id]                       7.26 kB         \u001b[37m\u001b[1m113 kB\u001b[22m\u001b[39m\n\u00e2\u201d\u0153 \u00c6\u2019 /connect                             2.34 kB         \u001b[37m\u001b[1m105 kB\u001b[22m\u001b[39m\n\u00e2\u201d\u0153 \u00e2\u2014\u2039 /create                              4.74 kB         \u001b[37m\u001b[1m111 kB\u001b[22m\u001b[39m\n\u00e2\u201d\u0153 \u00e2\u2014\u2039 /login                               2.09 kB         \u001b[37m\u001b[1m104 kB\u001b[22m\u001b[39m\n\u00e2\u201d\u0153 \u00c6\u2019 /queue                                 916 B         \u001b[37m\u001b[1m107 kB\u001b[22m\u001b[39m\n\u00e2\u201d\u201d \u00e2\u2014\u2039 /schedule                            4.14 kB         \u001b[37m\u001b[1m106 kB\u001b[22m\u001b[39m\n+ First Load JS shared by all             \u001b[37m\u001b[1m102 kB\u001b[22m\u001b[39m\n  \u00e2\u201d\u0153 chunks/1255-5fe68596fe147850.js        46 kB\n  \u00e2\u201d\u0153 chunks/4bd1b696-f785427dddbba9fb.js  54.2 kB\n  \u00e2\u201d\u201d other shared chunks (total)             2 kB\n\n\n\u00c6\u2019 Middleware                             \u001b[37m\u001b[1m34.6 kB\u001b[22m\u001b[39m\n\n\u00e2\u2014\u2039  (Static)   prerendered as static content\n\u00c6\u2019  (Dynamic)  server-rendered on demand\n\nBUILD_EXIT: 0",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false,
+      "noOutputExpected": false
+    },
+    "tool_use_id": "toolu_01UBGYSBikiAXMB1TXymQCjF",
+    "duration_ms": 22376
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd '/c/Users/OliverProductions/Desktop/2.DEVELOPMENT Work/SMG-Social-Hub'\nexport AUTH_SECRET=$(node -e \"console.log(require('crypto').randomBytes(24).toString('hex'))\")\nexport APP_PASSWORD=$(node -e \"console.log(require('crypto').randomBytes(9).toString('base64url'))\")\nexport CRON_SECRET=$(node -e \"console.log(require('crypto').randomBytes(16).toString('hex'))\")\nCJ=\"$CLAUDE_JOB_DIR/tmp/cj.txt\"\nnpx next dev -p 3010 > logs/dev-verify.log 2>&1 &\nSRV=$!\ncode=000\nfor i in $(seq 1 45); do\n  code=$(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3010/login --max-time 3 2>/dev/null)\n  [ \"$code\" = \"200\" ] && break\n  sleep 1\ndone\necho \"login page ready:            $code\"\necho \"GET /            (no cookie): $(curl -s -o /dev/null -w '%{http_code}' http://localhost:3010/ --max-time 8)   (expect 307 redirect)\"\necho \"GET /api/brands  (no cookie): $(curl -s -o /dev/null -w '%{http_code}' http://localhost:3010/api/brands --max-time 8)   (expect 401)\"\necho \"POST login wrong pw:          $(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:3010/api/auth/login -H 'Content-Type: application/json' -d '{\\\"password\\\":\\\"nope\\\"}' --max-time 8)   (expect 401)\"\necho \"POST login correct pw:        $(curl -s -o /dev/null -w '%{http_code}' -c \"$CJ\" -X POST http://localhost:3010/api/auth/login -H 'Content-Type: application/json' -d \"{\\\"password\\\":\\\"$APP_PASSWORD\\\"}\" --max-time 8)   (expect 200 + cookie)\"\necho \"GET /            (w/ cookie): $(curl -s -o /dev/null -w '%{http_code}' -b \"$CJ\" http://localhost:3010/ --max-time 8)   (expect 200)\"\necho \"GET /api/brands  (w/ cookie): $(curl -s -o /dev/null -w '%{http_code}' -b \"$CJ\" http://localhost:3010/api/brands --max-time 8)   (expect 200)\"\necho \"GET /api/cron    (no secret): $(curl -s -o /dev/null -w '%{http_code}' http://localhost:3010/api/cron --max-time 15)   (expect 401)\"\necho \"GET /api/cron    (w/ secret): $(curl -s -o /dev/null -w '%{http_code}' \"http://localhost:3010/api/cron?secret=$CRON_SECRET\" --max-time 20)   (expect 200)\"\nkill $SRV 2>/dev/null\necho \"--- verification server stopped ---\"",
+      "timeout": 150000,
+      "description": "Smoke test the full auth flow on port 3010"
+    },
+    "tool_response": {
+      "stdout": "login page ready:            200\nGET /            (no cookie): 307   (expect 307 redirect)\nGET /api/brands  (no cookie): 401   (expect 401)\nPOST login wrong pw:          400   (expect 401)\nPOST login correct pw:        200   (expect 200 + cookie)\nGET /            (w/ cookie): 200   (expect 200)\nGET /api/brands  (w/ cookie): 200   (expect 200)\nGET /api/cron    (no secret): 401   (expect 401)\nGET /api/cron    (w/ secret): 200   (expect 200)\n--- verification server stopped ---",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false,
+      "noOutputExpected": false
+    },
+    "tool_use_id": "toolu_015Fd69kVQ7ZpXv2BUiQCwhZ",
+    "duration_ms": 9709
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd '/c/Users/OliverProductions/Desktop/2.DEVELOPMENT Work/SMG-Social-Hub' && echo \"AUTH_SECRET=$(node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\")\" && echo \"CRON_SECRET=$(node -e \"console.log(require('crypto').randomBytes(24).toString('hex'))\")\"",
+      "description": "Generate AUTH_SECRET and CRON_SECRET values"
+    },
+    "tool_response": {
+      "stdout": "AUTH_SECRET=2c955dcc50a97d07cffef67ce037a6a9b0c66f4f08ea48267a5f7eae2480ab7f\nCRON_SECRET=4091023515df8f3adcbd58c8a964acba862b09d96488ae8d",
+      "stderr": "",
+      "interrupted": false,
+      "isImage": false,
+      "noOutputExpected": false
+    },
+    "tool_use_id": "toolu_01ADPp2BBw6NScamYsETfE6M",
+    "duration_ms": 3131
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\README.md",
+      "offset": 13,
+      "limit": 10
+    },
+    "tool_response": {
+      "type": "text",
+      "file": {
+        "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\README.md",
+        "content": "## Environment Variables\n\n| Variable | Required | Description |\n|----------|----------|-------------|\n| `DATABASE_URL` | Yes | SQLite path, e.g. `file:./dev.db` |\n| `ANTHROPIC_API_KEY` | Yes | Anthropic API key for AI reply generation |\n| `ENCRYPTION_KEY` | Yes | 32-char hex string for AES-256 token encryption |\n| `FACEBOOK_APP_ID` | Optional | Facebook OAuth App ID |\n| `FACEBOOK_APP_SECRET` | Optional | Facebook OAuth App Secret |\n| `INSTAGRAM_APP_ID` | Optional | Instagram Business App ID |",
+        "numLines": 10,
+        "startLine": 13,
+        "totalLines": 135
+      }
+    },
+    "tool_use_id": "toolu_01U6jGLTiW6xh3dQwKHsYB3r",
+    "duration_ms": 8
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\README.md",
+      "old_string": "| `DATABASE_URL` | Yes | SQLite path, e.g. `file:./dev.db` |\n| `ANTHROPIC_API_KEY` | Yes | Anthropic API key for AI reply generation |\n| `ENCRYPTION_KEY` | Yes | 32-char hex string for AES-256 token encryption |",
+      "new_string": "| `DATABASE_URL` | Yes | SQLite path, e.g. `file:./dev.db` |\n| `ANTHROPIC_API_KEY` | Yes | Anthropic API key for AI reply generation |\n| `TOKEN_ENCRYPTION_KEY` | Yes | 32-char hex string for AES-256 token encryption |\n| `AUTH_SECRET` | Yes | Random 32+ byte secret used to sign the operator session cookie |\n| `APP_PASSWORD` | Yes | The single shared operator login password |\n| `CRON_SECRET` | Yes | Shared secret required to call `POST /api/cron` (external scheduler) |",
+      "replace_all": false
+    },
+    "tool_response": {
+      "filePath": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub\\README.md",
+      "oldString": "| `DATABASE_URL` | Yes | SQLite path, e.g. `file:./dev.db` |\n| `ANTHROPIC_API_KEY` | Yes | Anthropic API key for AI reply generation |\n| `ENCRYPTION_KEY` | Yes | 32-char hex string for AES-256 token encryption |",
+      "newString": "| `DATABASE_URL` | Yes | SQLite path, e.g. `file:./dev.db` |\n| `ANTHROPIC_API_KEY` | Yes | Anthropic API key for AI reply generation |\n| `TOKEN_ENCRYPTION_KEY` | Yes | 32-char hex string for AES-256 token encryption |\n| `AUTH_SECRET` | Yes | Random 32+ byte secret used to sign the operator session cookie |\n| `APP_PASSWORD` | Yes | The single shared operator login password |\n| `CRON_SECRET` | Yes | Shared secret required to call `POST /api/cron` (external scheduler) |",
+      "originalFile": "# SMG Social Hub\n\nMulti-brand social media management: schedule posts + AI-assisted comment engagement.\n\n## Setup\n\n1. Copy `.env.example` to `.env.local` and fill in your credentials\n2. `npm install`\n3. `npx prisma db push`\n4. `npx prisma generate`\n5. `npm run dev`\n\n## Environment Variables\n\n| Variable | Required | Description |\n|----------|----------|-------------|\n| `DATABASE_URL` | Yes | SQLite path, e.g. `file:./dev.db` |\n| `ANTHROPIC_API_KEY` | Yes | Anthropic API key for AI reply generation |\n| `ENCRYPTION_KEY` | Yes | 32-char hex string for AES-256 token encryption |\n| `FACEBOOK_APP_ID` | Optional | Facebook OAuth App ID |\n| `FACEBOOK_APP_SECRET` | Optional | Facebook OAuth App Secret |\n| `INSTAGRAM_APP_ID` | Optional | Instagram Business App ID |\n| `INSTAGRAM_APP_SECRET` | Optional | Instagram App Secret |\n| `TWITTER_CLIENT_ID` | Optional | Twitter OAuth 2.0 Client ID |\n| `TWITTER_CLIENT_SECRET` | Optional | Twitter OAuth 2.0 Client Secret |\n| `LINKEDIN_CLIENT_ID` | Optional | LinkedIn App Client ID |\n| `LINKEDIN_CLIENT_SECRET` | Optional | LinkedIn App Client Secret |\n| `TIKTOK_CLIENT_KEY` | Optional | TikTok Content API Client Key |\n| `TIKTOK_CLIENT_SECRET` | Optional | TikTok App Client Secret |\n| `YOUTUBE_CLIENT_ID` | Optional | YouTube (Google) OAuth Client ID |\n| `YOUTUBE_CLIENT_SECRET` | Optional | YouTube OAuth Client Secret |\n| `REDDIT_CLIENT_ID` | Optional | Reddit App Client ID |\n| `REDDIT_CLIENT_SECRET` | Optional | Reddit App Client Secret |\n| `ARCADE_API_KEY` | Optional | Arcade API key for Twitter/Reddit posting |\n| `ARCADE_USER_ID` | Optional | Arcade user ID |\n| `NEXT_PUBLIC_BASE_URL` | Optional | Public base URL for OAuth callbacks |\n\n## Seed initial data\n\n```\nPOST http://localhost:3000/api/seed\n```\n\n## Pre-load SnapRegister comment opportunities\n\n```\nPOST http://localhost:3000/api/comments/pre-load\nBody: { \"brandId\": \"<brand-id>\" }\n```\n\n## Platforms\n\n| Platform | Post | Read Comments | Reply |\n|----------|------|---------------|-------|\n| Facebook Pages | Yes \u00e2\u20ac\u201d Graph API | Yes | Yes \u00e2\u20ac\u201d Owned pages |\n| Instagram Business | Yes \u00e2\u20ac\u201d Graph API | Yes | Yes \u00e2\u20ac\u201d Owned |\n| Twitter/X | Yes \u00e2\u20ac\u201d Arcade | Yes \u00e2\u20ac\u201d Arcade | Yes \u00e2\u20ac\u201d Arcade |\n| LinkedIn | Yes \u00e2\u20ac\u201d Direct API | Yes | Yes |\n| TikTok | Yes \u00e2\u20ac\u201d Content API | Yes \u00e2\u20ac\u201d Research API | Limited |\n| YouTube | File upload only | Yes \u00e2\u20ac\u201d Data API | Yes |\n| Reddit | Yes \u00e2\u20ac\u201d Arcade | Yes \u00e2\u20ac\u201d Public API | Yes \u00e2\u20ac\u201d Arcade |\n\n## AI Reply Generation\n\nPowered by `claude-haiku-4-5-20251001` (fast and cost-efficient).\n\n### How it works\n\n1. Navigate to Comments > click any opportunity\n2. Click \"Generate Reply\" on the detail page\n3. The system:\n   - Loads the brand voice and context from the database\n   - Sends the comment, post content, and brand context to Claude\n   - Runs a risk assessment on keywords in the comment and draft\n   - Saves the draft to the database\n4. You review and edit the reply in the textarea\n5. Click \"Approve Reply\"\n6. For owned channels: click \"Post Reply\" to publish\n7. For external channels: click \"Copy to Clipboard\", paste it manually\n\n### Risk Levels\n\n- **LOW**: Safe to post with standard review\n- **MEDIUM**: Contains sensitive product/complaint language \u00e2\u20ac\u201d review carefully\n- **HIGH**: Contains legal threat, refund demand, or fraud accusation \u00e2\u20ac\u201d always escalate to human, do not post AI draft as-is\n\n## Comment Engagement Rules (SnapRegister)\n\n- Start with the problem they're having\n- Give a 2-4 step answer\n- Never drop product link in first comment\n- Only mention SnapRegister if asked about organization tools\n- Flag and escalate any legal or refund-related comments\n\n## Brand Voice & Context\n\nEach brand has:\n- **Voice**: tone, personality, list of things to avoid, optional CTA hint\n- **Context**: products/services, target audience, key messages, FAQs\n\nEdit these at `/brands` in the dashboard. The AI system prompt is built from this data at reply-generation time.\n\n## Architecture\n\n```\nsrc/\n  app/\n    (dashboard)/\n      comments/           # Comment list + detail/approval pages\n        [id]/page.tsx     # AI reply workflow (generate \u00e2\u2020\u2019 review \u00e2\u2020\u2019 approve \u00e2\u2020\u2019 post)\n      brands/             # Brand voice & context editor\n    api/\n      comments/\n        route.ts          # List + create opportunities\n        [id]/\n          route.ts        # GET single (includes brand voice/context)\n          generate-reply/ # POST \u00e2\u2020\u2019 Claude AI \u00e2\u2020\u2019 save draft\n          approve/        # POST \u00e2\u2020\u2019 mark approved\n          post/           # POST \u00e2\u2020\u2019 publish to platform\n          skip/           # POST \u00e2\u2020\u2019 mark skipped\n      brands/\n        route.ts          # List + create brands\n        [id]/route.ts     # GET + PATCH + DELETE brand\n  lib/\n    ai/\n      reply-generator.ts  # Anthropic SDK integration\n      risk-filter.ts      # Keyword-based risk assessment\n    brands.ts             # Brand parsing utilities\n    db.ts                 # Prisma client singleton\n  components/\n    platform-badge.tsx    # Colored platform pill\n    copy-to-clipboard.tsx # Clipboard button with feedback\n    risk-badge.tsx        # LOW/MEDIUM/HIGH risk indicator\n```\n",
+      "structuredPatch": [
+        {
+          "oldStart": 16,
+          "oldLines": 7,
+          "newStart": 16,
+          "newLines": 10,
+          "lines": [
+            " |----------|----------|-------------|",
+            " | `DATABASE_URL` | Yes | SQLite path, e.g. `file:./dev.db` |",
+            " | `ANTHROPIC_API_KEY` | Yes | Anthropic API key for AI reply generation |",
+            "-| `ENCRYPTION_KEY` | Yes | 32-char hex string for AES-256 token encryption |",
+            "+| `TOKEN_ENCRYPTION_KEY` | Yes | 32-char hex string for AES-256 token encryption |",
+            "+| `AUTH_SECRET` | Yes | Random 32+ byte secret used to sign the operator session cookie |",
+            "+| `APP_PASSWORD` | Yes | The single shared operator login password |",
+            "+| `CRON_SECRET` | Yes | Shared secret required to call `POST /api/cron` (external scheduler) |",
+            " | `FACEBOOK_APP_ID` | Optional | Facebook OAuth App ID |",
+            " | `FACEBOOK_APP_SECRET` | Optional | Facebook OAuth App Secret |",
+            " | `INSTAGRAM_APP_ID` | Optional | Instagram Business App ID |"
+          ]
+        }
+      ],
+      "userModified": false,
+      "replaceAll": false
+    },
+    "tool_use_id": "toolu_01AUd5Urk9HQHpuqiWAF2xr6",
+    "duration_ms": 14
+  }
+]

@@ -1,0 +1,83 @@
+[
+  {
+    "session_id": "f8af0814-0fc4-4460-9b1d-65bdb06fa56d",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\f8af0814-0fc4-4460-9b1d-65bdb06fa56d.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "0b3fb8b0-4170-4095-a86b-358701890225",
+    "hook_event_name": "Notification",
+    "message": "Claude needs your permission",
+    "notification_type": "permission_prompt"
+  },
+  {
+    "session_id": "f8af0814-0fc4-4460-9b1d-65bdb06fa56d",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\f8af0814-0fc4-4460-9b1d-65bdb06fa56d.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "0b3fb8b0-4170-4095-a86b-358701890225",
+    "hook_event_name": "Notification",
+    "message": "Claude needs your permission",
+    "notification_type": "permission_prompt"
+  },
+  {
+    "session_id": "f8af0814-0fc4-4460-9b1d-65bdb06fa56d",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\f8af0814-0fc4-4460-9b1d-65bdb06fa56d.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "0b3fb8b0-4170-4095-a86b-358701890225",
+    "hook_event_name": "Notification",
+    "message": "Claude is waiting for your input",
+    "notification_type": "idle_prompt"
+  },
+  {
+    "session_id": "f8af0814-0fc4-4460-9b1d-65bdb06fa56d",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\f8af0814-0fc4-4460-9b1d-65bdb06fa56d.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "c8f26570-fb0c-43ba-8c53-085acfc20a14",
+    "hook_event_name": "Notification",
+    "message": "Claude is waiting for your input",
+    "notification_type": "idle_prompt"
+  },
+  {
+    "session_id": "f8af0814-0fc4-4460-9b1d-65bdb06fa56d",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\f8af0814-0fc4-4460-9b1d-65bdb06fa56d.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "63109c56-2f57-473f-9efc-dbe58ba474f1",
+    "hook_event_name": "Notification",
+    "message": "Claude is waiting for your input",
+    "notification_type": "idle_prompt"
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "e81c34c1-b8f9-4e2f-813d-793631342c3b",
+    "hook_event_name": "Notification",
+    "message": "Claude is waiting for your input",
+    "notification_type": "idle_prompt"
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "4c3aa6b0-dfec-4561-b96e-d44c4655f264",
+    "hook_event_name": "Notification",
+    "message": "Claude is waiting for your input",
+    "notification_type": "idle_prompt"
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "hook_event_name": "Notification",
+    "message": "Claude needs your permission",
+    "notification_type": "permission_prompt"
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "hook_event_name": "Notification",
+    "message": "Claude is waiting for your input",
+    "notification_type": "idle_prompt"
+  }
+]

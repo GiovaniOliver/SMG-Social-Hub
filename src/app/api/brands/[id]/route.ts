@@ -1,0 +1,104 @@
+import { NextRequest } from 'next/server'
+import { z } from 'zod'
+import { prisma } from '@/lib/db'
+import { getBrandById } from '@/lib/brands'
+
+const UpdateBrandSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  description: z.string().max(500).nullable().optional(),
+  logoUrl: z.string().url().nullable().optional(),
+  isActive: z.boolean().optional(),
+  voice: z
+    .object({
+      tone: z.string(),
+      personality: z.string(),
+      avoid: z.array(z.string()),
+      cta: z.string().optional(),
+    })
+    .optional(),
+  context: z
+    .object({
+      products: z.array(z.string()),
+      faqs: z.array(z.object({ q: z.string(), a: z.string() })),
+      targetAudience: z.array(z.string()),
+      keyMessages: z.array(z.string()),
+    })
+    .optional(),
+})
+
+type RouteContext = { params: Promise<{ id: string }> }
+
+export async function GET(
+  _request: NextRequest,
+  { params }: RouteContext
+) {
+  const { id } = await params
+  try {
+    const brand = await getBrandById(id)
+    if (!brand) {
+      return Response.json({ success: false, error: 'Brand not found' }, { status: 404 })
+    }
+    return Response.json({ success: true, data: brand })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch brand'
+    return Response.json({ success: false, error: message }, { status: 500 })
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: RouteContext
+) {
+  const { id } = await params
+  try {
+    const body = await request.json()
+    const validated = UpdateBrandSchema.safeParse(body)
+
+    if (!validated.success) {
+      return Response.json(
+        { success: false, error: validated.error.flatten().fieldErrors },
+        { status: 400 }
+      )
+    }
+
+    const { voice, context, ...rest } = validated.data
+
+    const existing = await prisma.brand.findUnique({ where: { id } })
+    if (!existing) {
+      return Response.json({ success: false, error: 'Brand not found' }, { status: 404 })
+    }
+
+    const updated = await prisma.brand.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(voice !== undefined ? { voice: JSON.stringify(voice) } : {}),
+        ...(context !== undefined ? { context: JSON.stringify(context) } : {}),
+      },
+    })
+
+    return Response.json({ success: true, data: updated })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to update brand'
+    return Response.json({ success: false, error: message }, { status: 500 })
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: RouteContext
+) {
+  const { id } = await params
+  try {
+    const existing = await prisma.brand.findUnique({ where: { id } })
+    if (!existing) {
+      return Response.json({ success: false, error: 'Brand not found' }, { status: 404 })
+    }
+
+    await prisma.brand.delete({ where: { id } })
+    return Response.json({ success: true, data: { deleted: true } })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to delete brand'
+    return Response.json({ success: false, error: message }, { status: 500 })
+  }
+}

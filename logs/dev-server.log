@@ -1,0 +1,88 @@
+
+> smg-social-hub@0.1.0 dev
+> next dev
+
+   [1m[38;2;173;127;168m▲ Next.js 15.5.15[39m[22m
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.1.32:3000
+   - Environments: .env.local, .env
+
+ [32m[1m✓[22m[39m Starting...
+ [32m[1m✓[22m[39m Ready in 2s
+ [37m[1m○[22m[39m Compiling / ...
+ [32m[1m✓[22m[39m Compiled / in 2.4s (704 modules)
+ GET / [32m200[39m in 2876ms
+ [32m[1m✓[22m[39m Compiled in 491ms (261 modules)
+ [37m[1m○[22m[39m Compiling /api/brands ...
+ [32m[1m✓[22m[39m Compiled /api/brands in 501ms (709 modules)
+ GET /api/brands [32m200[39m in 817ms
+ GET / [32m200[39m in 262ms
+ GET /api/brands [32m200[39m in 20ms
+ GET / [32m200[39m in 81ms
+ GET /api/brands [32m200[39m in 17ms
+ [32m[1m✓[22m[39m Compiled /create in 350ms (748 modules)
+ GET /create [32m200[39m in 466ms
+ [32m[1m✓[22m[39m Compiled in 115ms (273 modules)
+ GET /create [32m200[39m in 34ms
+ GET /create [32m200[39m in 21ms
+ GET /api/brands [32m200[39m in 23ms
+ GET /api/brands [32m200[39m in 12ms
+ [32m[1m✓[22m[39m Compiled /schedule in 229ms (755 modules)
+ GET /schedule [32m200[39m in 272ms
+ GET /schedule [32m200[39m in 22ms
+ GET /api/brands [32m200[39m in 17ms
+ GET /api/brands [32m200[39m in 11ms
+ [32m[1m✓[22m[39m Compiled /queue in 324ms (770 modules)
+ GET /queue [32m200[39m in 430ms
+ GET /queue [32m200[39m in 29ms
+ [32m[1m✓[22m[39m Compiled /comments in 320ms (793 modules)
+ GET /comments [32m200[39m in 363ms
+ GET /comments [32m200[39m in 24ms
+ GET /api/brands [32m200[39m in 23ms
+ GET /api/brands [32m200[39m in 14ms
+ [32m[1m✓[22m[39m Compiled /api/comments in 285ms (807 modules)
+ GET /api/comments?brandId=cmo813wzx0000argsfe8u9cp9&status=DRAFT_READY&limit=1 [32m200[39m in 378ms
+ GET /api/comments?brandId=cmo813wzx0000argsfe8u9cp9&status=APPROVED&limit=1 [32m200[39m in 378ms
+ GET /api/comments?brandId=cmo813wzx0000argsfe8u9cp9&status=PENDING&limit=1 [32m200[39m in 380ms
+ GET /api/comments?brandId=cmo813wzx0000argsfe8u9cp9&page=1&limit=18 [32m200[39m in 382ms
+ GET /api/comments?brandId=cmo813wzx0000argsfe8u9cp9&status=POSTED&limit=1 [32m200[39m in 380ms
+ GET /comments [32m200[39m in 136ms
+ [32m[1m✓[22m[39m Compiled /api/comments/scan in 246ms (820 modules)
+ POST /api/comments/scan [32m200[39m in 311ms
+ GET /api/comments?brandId=cmo813wzx0000argsfe8u9cp9&page=1&limit=18 [32m200[39m in 23ms
+ GET /api/comments?brandId=cmo813wzx0000argsfe8u9cp9&status=POSTED&limit=1 [32m200[39m in 69ms
+ GET /api/comments?brandId=cmo813wzx0000argsfe8u9cp9&status=PENDING&limit=1 [32m200[39m in 72ms
+ GET /api/comments?brandId=cmo813wzx0000argsfe8u9cp9&status=APPROVED&limit=1 [32m200[39m in 70ms
+ GET /comments [32m200[39m in 135ms
+ GET /api/comments?brandId=cmo813wzx0000argsfe8u9cp9&status=DRAFT_READY&limit=1 [32m200[39m in 86ms
+ [32m[1m✓[22m[39m Compiled in 128ms (287 modules)
+ [37m[1m○[22m[39m Compiling /middleware ...
+ [32m[1m✓[22m[39m Compiled /middleware in 657ms (877 modules)
+ [32m[1m✓[22m[39m Compiled /_not-found in 242ms (753 modules)
+ GET /login [33m404[39m in 364ms
+ GET /login [33m404[39m in 16ms
+ GET /login [33m404[39m in 16ms
+ GET /login [33m404[39m in 85ms
+ [32m[1m✓[22m[39m Compiled in 91ms (291 modules)
+ GET /login [33m404[39m in 23ms
+ GET /login [33m404[39m in 34ms
+ [32m[1m✓[22m[39m Compiled in 246ms (882 modules)
+ [32m[1m✓[22m[39m Compiled in 90ms (291 modules)
+ GET /login [33m404[39m in 66ms
+ GET /login [33m404[39m in 102ms
+ [32m[1m✓[22m[39m Compiled in 183ms (868 modules)
+ [32m[1m✓[22m[39m Compiled in 115ms (291 modules)
+ [32m[1m✓[22m[39m Compiled /login in 357ms (764 modules)
+ GET /login [32m200[39m in 425ms
+ [32m[1m✓[22m[39m Compiled in 304ms (778 modules)
+ GET /login [32m200[39m in 66ms
+ [32m[1m✓[22m[39m Compiled in 435ms (780 modules)
+ GET /login [32m200[39m in 47ms
+ [32m[1m✓[22m[39m Compiled in 69ms (115 modules)
+ [32m[1m✓[22m[39m Compiled in 48ms (115 modules)
+ [32m[1m✓[22m[39m Compiled in 47ms (115 modules)
+ [32m[1m✓[22m[39m Compiled /api/auth/login in 491ms (805 modules)
+ POST /api/auth/login [31m500[39m in 609ms
+ [32m[1m✓[22m[39m Compiled in 193ms (292 modules)
+ GET /login [32m200[39m in 115ms
+ GET /login [32m200[39m in 19ms

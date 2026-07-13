@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Brand {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  logoUrl     String?
+  voice       String   @default("{}")  // JSON: { tone, personality, avoid, cta }
+  context     String   @default("{}")  // JSON: { products, faqs, targetAudience, keyMessages }
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  connections          PlatformConnection[]
+  scheduledPosts       ScheduledPost[]
+  commentOpportunities CommentOpportunity[]
+}
+
+model PlatformConnection {
+  id           String    @id @default(cuid())
+  brandId      String
+  brand        Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  platform     String    // FACEBOOK | INSTAGRAM | TWITTER | LINKEDIN | TIKTOK | YOUTUBE | REDDIT
+  accountId    String?
+  accountLabel String?
+  accessToken  String    // AES-256 encrypted
+  refreshToken String?   // AES-256 encrypted
+  expiresAt    DateTime?
+  scopes       String    @default("[]") // JSON string array
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([brandId, platform])
+}
+
+model ScheduledPost {
+  id          String    @id @default(cuid())
+  brandId     String
+  brand       Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  platforms   String    // JSON: ["FACEBOOK","INSTAGRAM"]
+  content     String
+  mediaUrls   String    @default("[]") // JSON string array of public URLs
+  scheduledAt DateTime
+  status      String    @default("PENDING") // PENDING | PUBLISHING | PUBLISHED | FAILED | CANCELLED
+  publishedAt DateTime?
+  error       String?
+  results     String    @default("{}") // JSON: { FACEBOOK: { success, postId, postUrl } }
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model CommentOpportunity {
+  id            String    @id @default(cuid())
+  brandId       String
+  brand         Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  platform      String    // FACEBOOK | INSTAGRAM | TWITTER | LINKEDIN | TIKTOK | YOUTUBE | REDDIT
+  postUrl       String
+  postTitle     String?
+  postContent   String?
+  commentId     String?
+  commentText   String?
+  authorName    String?
+  authorHandle  String?
+  isOwned       Boolean   @default(false) // true = on our own page/account
+  relevanceNote String?   // why this is relevant to the brand
+  status        String    @default("PENDING") // PENDING | DRAFT_READY | APPROVED | POSTED | SKIPPED
+  approvedReply String?
+  postedAt      DateTime?
+  discoveredAt  DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  drafts        CommentDraft[]
+}
+
+model CommentDraft {
+  id            String             @id @default(cuid())
+  opportunityId String
+  opportunity   CommentOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  content       String
+  isApproved    Boolean            @default(false)
+  createdAt     DateTime           @default(now())
+}

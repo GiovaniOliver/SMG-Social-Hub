@@ -1,0 +1,167 @@
+[
+  {
+    "session_id": "f8af0814-0fc4-4460-9b1d-65bdb06fa56d",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\f8af0814-0fc4-4460-9b1d-65bdb06fa56d.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "0b3fb8b0-4170-4095-a86b-358701890225",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "Stop",
+    "stop_hook_active": false,
+    "last_assistant_message": "All code changes are done and the feature typechecks clean. The only remaining step \u00e2\u20ac\u201d running the parser tests \u00e2\u20ac\u201d is blocked on the `vitest` install finishing (npm is slow on this machine). It's running in the background; I'll run the test suite and a final production build once it lands.\n\nHere's where things stand:\n\n**Done:**\n- `src/lib/comments/parse.ts` \u00e2\u20ac\u201d new pure parsers (`extractLinkedInUrn`, `extractTikTokVideoId`, `extractPostIdentifier`) handling raw IDs/URNs, `/feed/update/`, `/posts/\u00e2\u20ac\u00a6-activity-<id>-\u00e2\u20ac\u00a6`, URL-encoded URNs, and TikTok `/video/` & `/photo/` URLs.\n- `src/lib/comments/index.ts` \u00e2\u20ac\u201d `additionalUrls` now fetches **real comments** for LinkedIn/TikTok via the existing fetchers (with bare-entry fallback when no connection or unparseable id).\n- `src/app/api/comments/scan/route.ts` \u00e2\u20ac\u201d schema accepts a raw URN/id, not only a URL.\n- `src/app/(dashboard)/comments/page.tsx` \u00e2\u20ac\u201d \"Add URL\" modal routes LinkedIn/TikTok through the scan endpoint with per-platform hints and a \"found N comments\" result.\n- `src/lib/comments/parse.test.ts` + `vitest.config.ts` \u00e2\u20ac\u201d 20+ unit cases for the parsers.\n\n**Pending verification:** `npm run test` (once vitest installs) + final `npm run build`.\n\nI'll pick this up automatically when the install completes.",
+    "background_tasks": [
+      {
+        "id": "blu6z3zri",
+        "type": "shell",
+        "status": "running",
+        "description": "Install vitest in background",
+        "command": "cd '/c/Users/OliverProductions/Desktop/2.DEVELOPMENT Work/SMG-Social-Hub' && npm install -D vitest > logs/vitest-install.log 2>&1; echo \"done exit $?\""
+      }
+    ],
+    "session_crons": []
+  },
+  {
+    "session_id": "f8af0814-0fc4-4460-9b1d-65bdb06fa56d",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\f8af0814-0fc4-4460-9b1d-65bdb06fa56d.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "c8f26570-fb0c-43ba-8c53-085acfc20a14",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "Stop",
+    "stop_hook_active": false,
+    "last_assistant_message": "Done. All green:\n\n- **Typecheck:** clean\n- **Tests:** 16/16 pass (`npm test`)\n- **Production build:** passes (25 routes; `/comments` grew 6.16\u00e2\u2020\u20196.6 kB from the modal work)\n\n## What now works\n\nYou can paste a **LinkedIn post URL/URN** or **TikTok video URL/ID** in the Comments page's \"Add URL\" modal, and the app fetches the actual comments on that post as reply opportunities \u00e2\u20ac\u201d instead of just recording a dead post-level entry.\n\n**The flow:**\n1. Comments \u00e2\u2020\u2019 **Add URL** \u00e2\u2020\u2019 pick LinkedIn or TikTok \u00e2\u2020\u2019 the modal switches to \"Fetch Comments from a Post\" with a per-platform hint.\n2. Paste any of: a `/feed/update/urn:li:activity:\u00e2\u20ac\u00a6` URL, a `/posts/\u00e2\u20ac\u00a6-activity-<id>-\u00e2\u20ac\u00a6` share URL, a raw `urn:li:activity:\u00e2\u20ac\u00a6`, a bare id, a `tiktok.com/@user/video/<id>` URL, or a raw numeric video id.\n3. It calls the scan endpoint, which parses out the identifier, uses the brand's stored (decrypted) access token, and calls the existing `fetchLinkedInComments` / `fetchTikTokComments` fetchers.\n4. Comments upsert as opportunities (deduped); the modal reports \"Fetched N new comment opportunities.\"\n\n**Files changed:**\n- `src/lib/comments/parse.ts` *(new)* \u00e2\u20ac\u201d pure ID/URN extractors\n- `src/lib/comments/parse.test.ts` *(new)* \u00e2\u20ac\u201d 16 unit cases\n- `src/lib/comments/index.ts` \u00e2\u20ac\u201d `additionalUrls` fetches real comments for id-driven platforms, falls back to bare entry otherwise\n- `src/app/api/comments/scan/route.ts` \u00e2\u20ac\u201d schema accepts raw URN/id, not only URLs\n- `src/app/(dashboard)/comments/page.tsx` \u00e2\u20ac\u201d reworked \"Add URL\" modal\n- `vitest.config.ts`, `package.json` \u00e2\u20ac\u201d added Vitest + `test`/`test:watch` scripts\n\n**One caveat on verification:** I confirmed this at the type/test/build level and unit-tested the parsing (the part most likely to break on odd URL shapes). I did **not** run it against the live LinkedIn/TikTok APIs, since that needs a brand with a real connected account + a post you own \u00e2\u20ac\u201d if you want, connect an account and I'll drive it live in the browser to confirm the round trip, or start the dev server and walk it through.\n\nWant me to run it live, or move on to the next piece (the untested risk-filter/reply-generator logic is the next-biggest gap)?",
+    "background_tasks": [],
+    "session_crons": []
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "e81c34c1-b8f9-4e2f-813d-793631342c3b",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "Stop",
+    "stop_hook_active": false,
+    "last_assistant_message": "All green. The AI logic that gates what gets posted is now covered.\n\n## Done\n\n- **Tests:** 35/35 passing across 3 files (`npm test`)\n- **Typecheck:** clean\n- **Production build:** passes\n\n**New coverage:**\n- `src/lib/ai/risk-filter.test.ts` (10 cases) \u00e2\u20ac\u201d the guardrail that decides LOW/MEDIUM/HIGH and forces human review. Covers legal/refund/fraud \u00e2\u2020\u2019 HIGH, complaint language \u00e2\u2020\u2019 MEDIUM, **draft-side commitment language escalating a benign comment to HIGH**, case-insensitivity, multi-word phrases (\"class action\", \"does not work\"), scanning both comment *and* draft, and HIGH-over-MEDIUM priority.\n- `src/lib/ai/reply-generator.test.ts` (9 cases) \u00e2\u20ac\u201d Gemini mocked out; covers JSON parsing, **extraction from prose/code-fence-wrapped responses**, warnings passthrough, the two throw paths (no JSON / empty content), truncation at platform limits with a warning, explicit `maxLength` override, and the 400-char fallback for unknown platforms.\n\n**One thing worth flagging** (not fixed \u00e2\u20ac\u201d didn't want to change behavior without asking): the reply generator uses **Google Gemini** (`gemini-2.0-flash-lite`), but the README and `.env` docs describe **Claude Haiku** / `ANTHROPIC_API_KEY`. The code reads `GEMINI_API_KEY`. So the docs are out of sync with the implementation \u00e2\u20ac\u201d either the README is stale or the provider was swapped mid-build.\n\nWant me to:\n1. **Reconcile the Gemini/Claude mismatch** \u00e2\u20ac\u201d either update the README to match the Gemini implementation, or switch the generator to Claude (the docs' stated intent, and the more capable option)?\n2. **Keep expanding tests** \u00e2\u20ac\u201d the scheduler, `brands.ts` parsing, and the crypto/token encryption are still untested?\n3. Something else?",
+    "background_tasks": [],
+    "session_crons": []
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "ba1b69ec-adf9-4e29-aec3-7cb81cb6d60f",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "Stop",
+    "stop_hook_active": false,
+    "last_assistant_message": "Everything's green and the app is live. Here's where we are:\n\n## \u00e2\u0153\u2026 Reply generator migrated to Claude\n- Now uses **`claude-haiku-4-5`** via `@anthropic-ai/sdk` (matches what the README always claimed). Bump to `claude-opus-4-8` by changing the `MODEL` constant if you want higher quality over cost.\n- Client is created **lazily** so a missing key throws a clear \"ANTHROPIC_API_KEY is not configured\" error at reply-time instead of crashing every route at import.\n- **Tests:** 35/35 pass (I ported the reply-generator tests to mock the Anthropic SDK). **Typecheck:** clean. **Build:** clean.\n\n## \u00e2\u0153\u2026 App is running\n- **http://localhost:3000** \u00e2\u20ac\u201d homepage returns HTTP 200, `/api/brands` returns 200. Open it and click around: `/brands`, `/comments`, `/schedule`, `/create`, `/connect`, `/queue`.\n\n## \u00e2\u0161\u00a0\u00ef\u00b8\udc8f Two things for you\n1. **Add `ANTHROPIC_API_KEY=...` to `.env.local`** when you have the key, then the \"Generate Reply\" button on any comment will work. (The dev server picks up `.env.local` changes, but you may need to restart it \u00e2\u20ac\u201d `Ctrl+C` then `npm run dev` \u00e2\u20ac\u201d for env vars.)\n2. **`content-generator.ts` still uses Gemini** (`GEMINI_API_KEY`) \u00e2\u20ac\u201d that's the AI post-content feature on the `/create` page, separate from comment replies. Want me to migrate that to Claude too so the whole AI stack is on one provider? It's the same quick change.\n\n## \u00f0\u0178\u201d\udc8d Gap-finding agents \u00e2\u20ac\u201d running now\nThree agents are analyzing the app in the background:\n- **Code review** \u00e2\u20ac\u201d correctness/bugs across the AI flow, scheduler, OAuth, posting adapters\n- **Security review** \u00e2\u20ac\u201d token encryption, OAuth CSRF, input validation, prompt injection, whether the app has any auth at all\n- **Completeness/gaps** \u00e2\u20ac\u201d stubbed flows, silent failures, test gaps, production-readiness (auth, rate limiting, token refresh)\n\nI'll consolidate their findings into a single prioritized \"what needs our attention\" list as soon as they finish \u00e2\u20ac\u201d you'll get it automatically, no need to wait here.\n\nWhile they run \u00e2\u20ac\u201d want me to migrate `content-generator.ts` to Claude, or hold for the agent findings first?",
+    "background_tasks": [
+      {
+        "id": "ab271c4fac06c3966",
+        "type": "subagent",
+        "status": "running",
+        "description": "Code review for bugs & quality",
+        "agent_type": "everything-claude-code:code-reviewer"
+      },
+      {
+        "id": "af5fb5e19db2e26a5",
+        "type": "subagent",
+        "status": "running",
+        "description": "Security review",
+        "agent_type": "everything-claude-code:security-reviewer"
+      },
+      {
+        "id": "a06d11128fcdd95f7",
+        "type": "subagent",
+        "status": "running",
+        "description": "Completeness & gap analysis",
+        "agent_type": "general-purpose"
+      }
+    ],
+    "session_crons": []
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "43352d49-ff61-4dc1-9fa8-a32e69079f60",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "Stop",
+    "stop_hook_active": false,
+    "last_assistant_message": "The **code-review agent** just finished and found serious issues worth flagging immediately (the other two agents \u00e2\u20ac\u201d security and completeness \u00e2\u20ac\u201d are still running). Top findings:\n\n## \u00f0\u0178\u201d\u00b4 Code review \u00e2\u20ac\u201d 2 CRITICAL, 1 HIGH\n\n**1. CRITICAL \u00e2\u20ac\u201d Human-review gate is bypassable when posting a reply** (`api/comments/[id]/post/route.ts`)\nThe post handler takes `replyText` from the request body and publishes it directly. It never checks `status === 'APPROVED'`, never verifies the text matches the human-approved `approvedReply`, and doesn't block re-posting an already-`POSTED` opportunity. So unreviewed AI text (or a duplicate/different reply) can go live \u00e2\u20ac\u201d which defeats the whole \"human-reviewed\" premise of the app.\n\n**2. CRITICAL \u00e2\u20ac\u201d OAuth `state` is never validated (account-linking CSRF)** (all of `api/oauth/*`)\n`state` is just base64 `{brandId, ts}` with no nonce/signature/cookie. An attacker can craft a callback that links *their* social account to *your* brand, silently overwriting the real connection \u00e2\u20ac\u201d then their account is what posts \"as\" that brand.\n\n**3. HIGH \u00e2\u20ac\u201d Scheduler double-publish / stuck posts** (`lib/scheduler.ts` + `api/cron`)\nStatus goes `PENDING \u00e2\u2020\u2019 PUBLISHING` without an atomic compare-and-swap, and `/api/cron` has no auth. Two concurrent cron hits can publish the same post twice; a mid-publish crash leaves a post stuck in `PUBLISHING` forever with no retry.\n\n**Plus MEDIUM:** non-atomic comment dedup (duplicate rows/replies on overlapping scans), and `/api/cron` unauthenticated.\n\nThese are all consistent \u00e2\u20ac\u201d the app currently trusts its own API routes and has no auth layer. I'll fold these into one prioritized plan once the **security** and **completeness** agents land (both still running), so we're not fixing piecemeal.\n\nI'll hold on the `content-generator.ts` Claude migration and any fixes until you steer \u00e2\u20ac\u201d but given #1 and #2 are CRITICAL and directly undermine the app's core guarantee, my recommendation is to fix those two first. Want me to start on #1 and #2 now, or wait for the full consolidated report from all three agents?",
+    "background_tasks": [
+      {
+        "id": "af5fb5e19db2e26a5",
+        "type": "subagent",
+        "status": "running",
+        "description": "Security review",
+        "agent_type": "everything-claude-code:security-reviewer"
+      },
+      {
+        "id": "a06d11128fcdd95f7",
+        "type": "subagent",
+        "status": "running",
+        "description": "Completeness & gap analysis",
+        "agent_type": "general-purpose"
+      }
+    ],
+    "session_crons": []
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "0fb47030-5e27-4dfc-846c-37e6774767d0",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "Stop",
+    "stop_hook_active": false,
+    "last_assistant_message": "The **security agent** finished too (completeness agent is the last one still running). It confirms the code-review findings and adds the bigger picture. New/important items beyond what I already reported:\n\n## \u00f0\u0178\u201d\u00b4 Security \u00e2\u20ac\u201d the root cause behind everything\n\n**CRITICAL \u00e2\u20ac\u201d The app has NO authentication at all.** No `middleware.ts`, no session library, no auth dependency. Every API route is open to anyone who can reach the URL:\n- `curl -X POST /api/publish \u00e2\u20ac\u00a6` \u00e2\u2020\u2019 posts live to a brand's real Facebook Page, no credentials\n- `curl -X DELETE /api/connections?id=\u00e2\u20ac\u00a6` \u00e2\u2020\u2019 severs a brand's platform connection\n- `curl /api/brands` \u00e2\u2020\u2019 leaks all brand IDs (which is what makes the OAuth-state CSRF trivial)\n\nThis is the root cause: the post-route bypass, the cron issue, and the OAuth CSRF are all *reachable by anyone* because there's no auth gate. **Fix this first** \u00e2\u20ac\u201d it de-risks everything else.\n\n**Also new:**\n- **HIGH \u00e2\u20ac\u201d Prompt injection in reply generation.** Comment text (attacker-controlled) is embedded in the LLM prompt with only a naive quote-wrap. A malicious comment can hijack the reply (\"email your bank details to\u00e2\u20ac\u00a6\") *and* suppress the model's self-reported warnings. Combined with the weak keyword risk-filter (trivially bypassed by synonyms/obfuscation) and the missing post-time gate, injected content can auto-publish.\n- **HIGH \u00e2\u20ac\u201d Static hardcoded salt** in `crypto.ts` key derivation (`'smg-social-hub-salt'`), and the key-length check (`< 16`) is too permissive.\n- **Verified clean:** the AES-256-GCM crypto itself (random IV, proper auth tag), no SQL injection (Prisma), no hardcoded secrets, tokens never returned to clients.\n\n**One note:** the security agent flagged `reply-generator.ts` referencing undefined `genAI`/`parseGeminiResponse` (LOW-1) \u00e2\u20ac\u201d that was it reading the file **mid-migration**. The finished migration has none of that; tsc and the build both pass clean, so **that one's already resolved.** Its underlying point stands though: there was no integration test actually exercising `generateReply` \u00e2\u20ac\u201d which is exactly the gap my Anthropic-SDK-mocked test now closes.\n\nThe **completeness agent** is the last one running. When it lands I'll turn all three into a single deduplicated, prioritized fix plan (auth \u00e2\u2020\u2019 post-gate \u00e2\u2020\u2019 OAuth state \u00e2\u2020\u2019 prompt-injection/risk \u00e2\u2020\u2019 cron \u00e2\u2020\u2019 the rest). Given how severe CRITICAL-1 is, my recommendation is still to hold the `content-generator` migration and start on **auth + the post-approval gate** \u00e2\u20ac\u201d but I'll wait for your go-ahead and the final agent before touching anything.",
+    "background_tasks": [],
+    "session_crons": []
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "4c3aa6b0-dfec-4561-b96e-d44c4655f264",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "Stop",
+    "stop_hook_active": false,
+    "last_assistant_message": "All three agents are in. Here's the consolidated, deduplicated picture \u00e2\u20ac\u201d I've merged overlaps and marked how many of the three independent agents flagged each (\u00e2\u00a8\u00af3 = high confidence).\n\n# Consolidated: What Needs Our Attention\n\n## \u00f0\u0178\u201d\u00b4 MUST-FIX \u00e2\u20ac\u201d blocks safe production use\n\n**1. No authentication anywhere \u00e2\u00a8\u00af3** \u00e2\u20ac\u201d No `middleware.ts`, no login, no auth dependency. Every route is publicly callable: `POST /api/publish` posts to real accounts, `DELETE /api/connections` severs connections, the AI endpoints burn unbounded spend. **This is the root cause** \u00e2\u20ac\u201d it's what makes the CSRF, post-bypass, and cron issues remotely exploitable. Fix first; it de-risks everything else.\n\n**2. Post-approval gate is bypassable \u00e2\u00a8\u00af2** \u00e2\u20ac\u201d `/api/comments/[id]/post` takes `replyText` from the body and publishes it directly. Never checks `status === 'APPROVED'`, never matches `approvedReply`, never blocks re-posting. The risk-filter's `requiresHumanReview` is **informational only \u00e2\u20ac\u201d nothing server-side enforces it.** Unreviewed/injected AI text can go live.\n\n**3. OAuth `state` is forgeable (account-hijack) \u00e2\u00a8\u00af3** \u00e2\u20ac\u201d `state` is plain base64 `{brandId, ts}`, no nonce/signature/cookie. Since `/api/brands` leaks brand IDs (no auth), an attacker links *their* social account to *your* brand and becomes the account that posts \"as\" you.\n\n**4. Expired OAuth tokens are never refreshed \u00e2\u00a8\u00af1** \u00e2\u20ac\u201d Refresh tokens are stored but never used (no `grant_type=refresh_token` anywhere). Google/YouTube access tokens die in ~1 hour, FB/IG page tokens in ~60 days (stored as `expiresAt: null`). **Posting silently breaks shortly after connecting.** DB columns already exist.\n\n**5. The scheduler is never actually triggered \u00e2\u00a8\u00af1** \u00e2\u20ac\u201d `node-cron` is a dependency but imported nowhere; no `vercel.json`, no cron. `processScheduledPosts()` only runs when something hits the (unauthenticated) `/api/cron`. **Scheduled posts will never publish in prod.**\n\n**6. Scheduler double-publish / stuck posts \u00e2\u00a8\u00af1** \u00e2\u20ac\u201d `PENDING \u00e2\u2020\u2019 PUBLISHING` isn't an atomic compare-and-swap, so concurrent cron hits publish twice; a mid-publish crash strands a post in `PUBLISHING` forever with no retry.\n\n**7. Config/secret drift \u00e2\u20ac\u201d can't set up from the README \u00e2\u00a8\u00af1** \u00e2\u20ac\u201d Code reads `TOKEN_ENCRYPTION_KEY` (README says `ENCRYPTION_KEY`), `NEXT_PUBLIC_APP_URL` (README says `_BASE_URL`), and `content-generator.ts` needs `GEMINI_API_KEY` (undocumented). Following the README \u00e2\u2020\u2019 crypto throws and content-gen silently returns empty.\n\n**8. SQLite as the datastore \u00e2\u00a8\u00af1** \u00e2\u20ac\u201d Committed `dev.db`, concurrent `Promise.all` writes \u00e2\u2020\u2019 `database is locked` under load; won't run multi-instance/serverless. Move to Postgres before launch.\n\n## \u00f0\u0178\u0178\u00a0 SHOULD-FIX \u00e2\u20ac\u201d correctness & reliability\n\n- **Static hardcoded salt** in `crypto.ts` key derivation + too-permissive key-length check (`< 16`). *(Crypto itself \u00e2\u20ac\u201d AES-256-GCM, random IV, auth tag \u00e2\u20ac\u201d verified correct.)*\n- **Prompt injection** in reply generation \u00e2\u20ac\u201d untrusted comment text embedded with only a quote-wrap; can hijack the reply and suppress the model's warnings. Risk-filter is trivially bypassed (substring match; synonyms/obfuscation defeat it).\n- **Silent failures in all 7 comment fetchers** \u00e2\u20ac\u201d every error returns `[]`, indistinguishable from \"no comments.\" Only one `console.error` in the entire codebase.\n- **Scan uses possibly-expired tokens** \u00e2\u20ac\u201d `getDecryptedConnection` checks `isActive` but not `expiresAt`.\n- **`/api/publish` marks partial failures as PUBLISHED** \u00e2\u20ac\u201d 2-of-3 platforms failing still records `PUBLISHED`; no outer try/catch.\n- **Non-atomic comment dedup** \u00e2\u20ac\u201d no `@@unique` on `(brandId, postUrl, commentId)`; overlapping scans double-insert \u00e2\u2020\u2019 duplicate drafts/replies.\n- **Retry endpoint sweeps the whole queue** \u00e2\u20ac\u201d retrying one post republishes all due posts and races the cron.\n- **No rate limiting** on any AI/write endpoint.\n- **Error text from upstream APIs reflected to the client** in OAuth redirects.\n\n## \u00f0\u0178\u00a7\u00aa TESTS\nCurrent suite (35 tests) is solid but narrow \u00e2\u20ac\u201d only risk-filter, reply-generator, and comment-parse. **Untested & critical:** `scheduler.ts`, `social/index.ts` (publishPost), `crypto.ts` (round-trip + tamper), all API routes, all platform adapters. No coverage gate.\n\n## \u00f0\u0178\u0178\u00a2 NICE-TO-HAVE / half-finished\nYouTube publish is a permanent no-op (URL upload unsupported) yet may be offered as a target; LinkedIn/TikTok generic scan silently returns `[]`; Reddit \"comments\" are actually posts; LinkedIn author shows raw URN; Facebook scan only handles the first page; no `User`/`Team` model and **no record of who approved/posted a reply** (undercuts the human-review compliance story).\n\n\u00e2\u0153\u2026 **Already resolved:** the security agent's \"reply-generator references undefined `genAI`\" was it reading mid-migration \u00e2\u20ac\u201d the finished migration is clean (tsc + build pass).\n\n---\n\n## Recommended sequence (the 5 that unblock a safe pilot)\n1. **Auth + `CRON_SECRET`** \u00e2\u20ac\u201d middleware over `(dashboard)` + `/api/*`\n2. **Post-approval gate** \u00e2\u20ac\u201d enforce `APPROVED` + match `approvedReply` + re-check risk server-side\n3. **OAuth `state`** \u00e2\u20ac\u201d random, server-validated, single-use nonce\n4. **Token refresh** \u00e2\u20ac\u201d `refreshTokenIfExpiring()` before every publish/scan/post\n5. **README/env reconciliation** \u00e2\u20ac\u201d so setup actually works\n\nThen reliability (silent failures, atomic scheduler, dedup constraint), then backfill tests around scheduler/publish/crypto.\n\n---\n\nNothing's been changed from this analysis \u00e2\u20ac\u201d it was all read-only. How do you want to proceed? Options:\n- **A)** Start the pilot-blockers in order (auth \u00e2\u2020\u2019 post-gate \u00e2\u2020\u2019 OAuth state \u00e2\u2020\u2019 token refresh \u00e2\u2020\u2019 README) \u00e2\u20ac\u201d I'd do them one at a time with tests and check in between each.\n- **B)** Just the 3 CRITICAL security items first (auth, post-gate, OAuth state), then reassess.\n- **C)** Knock out the quick, low-risk wins first (README/env reconciliation, `content-generator` \u00e2\u2020\u2019 Claude, `CRON_SECRET`, dedup unique constraint) to stabilize setup before the bigger auth work.\n- **D)** Something else / a specific item.",
+    "background_tasks": [],
+    "session_crons": []
+  },
+  {
+    "session_id": "a805b4f7-9bfe-47da-bb29-3f34364010ae",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\a805b4f7-9bfe-47da-bb29-3f34364010ae.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "prompt_id": "674310ff-e6fa-44b4-beba-4dea437662ea",
+    "permission_mode": "bypassPermissions",
+    "effort": {
+      "level": "high"
+    },
+    "hook_event_name": "Stop",
+    "stop_hook_active": false,
+    "last_assistant_message": "\u00e2\u0153\u2026 **#1 (Auth + cron secret) is done and verified.** Checkpoint before I move to #2.\n\n## What changed\n- **`src/lib/auth.ts`** \u00e2\u20ac\u201d Web-Crypto session signing (Edge-safe), constant-time password check\n- **`src/middleware.ts`** \u00e2\u20ac\u201d gates every route except `/login`, `/api/auth/login`, and `/api/cron`\n- **`/api/auth/login` + `/api/auth/logout`** \u00e2\u20ac\u201d signed HttpOnly cookie (30-day, SameSite=Lax, Secure in prod)\n- **`/login` page** + **Sign-out button** in the sidebar\n- **`/api/cron`** \u00e2\u20ac\u201d now requires `CRON_SECRET` (Bearer header or `?secret=`), fail-closed\n- **README** \u00e2\u20ac\u201d documented the new vars (and fixed the `ENCRYPTION_KEY`\u00e2\u2020\u2019`TOKEN_ENCRYPTION_KEY` doc drift while there)\n- **10 new tests** (45 total passing)\n\n## \u00e2\u0161\u00a0\u00ef\u00b8\udc8f Action needed \u00e2\u20ac\u201d the app on :3000 is now locked until you configure it\nThe middleware is live, so the running server currently redirects everyone to `/login` and login returns \"Auth not configured\" until these are set. Add to **`.env.local`**:\n\n```\nAUTH_SECRET=2c955dcc50a97d07cffef67ce037a6a9b0c66f4f08ea48267a5f7eae2480ab7f\nAPP_PASSWORD=<pick a strong password you'll log in with>\nCRON_SECRET=4091023515df8f3adcbd58c8a964acba862b09d96488ae8d\n```\n*(These two secrets are freshly generated for you. Also add `ANTHROPIC_API_KEY` when you have it.)*\n\nThen **restart the dev server** (env vars load at startup): stop it and `npm run dev`. After that, visit http://localhost:3000 \u00e2\u2020\u2019 you'll get the login page \u00e2\u2020\u2019 enter your `APP_PASSWORD`.\n\nWant me to restart the :3000 server for you once you've added those to `.env.local`? Just say the word (or type `! npm run dev` yourself).\n\n---\n\n## Next up: #2 \u00e2\u20ac\u201d Post-approval gate\nThis is the other CRITICAL: `/api/comments/[id]/post` currently publishes whatever `replyText` it's handed, with no check that the opportunity is `APPROVED` or that the text matches the human-approved reply. My plan:\n- Require `opportunity.status === 'APPROVED'` before posting\n- Post `opportunity.approvedReply` (ignore/verify the body text so unreviewed text can't slip through)\n- Reject if already `POSTED`\n- Re-run `assessReplyRisk` server-side at post time and block `requiresHumanReview` unless explicitly overridden\n- Add tests for the gate\n\nShall I proceed with #2?",
+    "background_tasks": [],
+    "session_crons": []
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "session_id": "f8af0814-0fc4-4460-9b1d-65bdb06fa56d",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\f8af0814-0fc4-4460-9b1d-65bdb06fa56d.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "hook_event_name": "SessionStart",
+    "source": "startup",
+    "model": "claude-opus-4-8[1m]"
+  },
+  {
+    "session_id": "95e1cd02-b94a-4777-8bcb-82da73352799",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\95e1cd02-b94a-4777-8bcb-82da73352799.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "agent_type": "claude",
+    "hook_event_name": "SessionStart",
+    "source": "startup",
+    "model": "claude-opus-4-8[1m]"
+  },
+  {
+    "session_id": "f8af0814-0fc4-4460-9b1d-65bdb06fa56d",
+    "transcript_path": "C:\\Users\\OliverProductions\\.claude\\projects\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\f8af0814-0fc4-4460-9b1d-65bdb06fa56d.jsonl",
+    "cwd": "C:\\Users\\OliverProductions\\Desktop\\2.DEVELOPMENT Work\\SMG-Social-Hub",
+    "hook_event_name": "SessionStart",
+    "source": "resume"
+  }
+]

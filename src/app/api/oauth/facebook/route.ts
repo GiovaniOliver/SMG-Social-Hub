@@ -1,0 +1,43 @@
+import { NextRequest } from 'next/server'
+
+export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url)
+  const brandId = searchParams.get('brandId')
+
+  if (!brandId) {
+    return Response.json({ success: false, error: 'brandId is required' }, { status: 400 })
+  }
+
+  const appId = process.env.FACEBOOK_APP_ID
+  const redirectUri = process.env.FACEBOOK_REDIRECT_URI
+
+  if (!appId || !redirectUri) {
+    return Response.json(
+      { success: false, error: 'Facebook OAuth is not configured. Set FACEBOOK_APP_ID and FACEBOOK_REDIRECT_URI.' },
+      { status: 500 }
+    )
+  }
+
+  const scopes = [
+    'pages_manage_posts',
+    'pages_read_engagement',
+    'instagram_basic',
+    'instagram_content_publish',
+    'pages_show_list',
+    'business_management',
+  ].join(',')
+
+  const state = Buffer.from(JSON.stringify({ brandId, ts: Date.now() })).toString('base64url')
+
+  const params = new URLSearchParams({
+    client_id: appId,
+    redirect_uri: redirectUri,
+    scope: scopes,
+    response_type: 'code',
+    state,
+  })
+
+  const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`
+
+  return Response.redirect(authUrl)
+}
