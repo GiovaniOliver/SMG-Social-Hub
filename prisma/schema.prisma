@@ -15,6 +15,15 @@ model Brand {
   logoUrl     String?
   voice       String   @default("{}")  // JSON: { tone, personality, avoid, cta }
   context     String   @default("{}")  // JSON: { products, faqs, targetAudience, keyMessages }
+  // --- Content Engine fields (ported from BrandFlow) ---
+  niche          String?
+  audience       String?
+  tone           String?
+  goals          String?  // JSON string array
+  website        String?
+  websiteContent String?
+  brandKit       String?  // JSON string
+  engineSettings String?  // JSON string (BrandFlow per-brand settings)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -22,6 +31,7 @@ model Brand {
   connections          PlatformConnection[]
   scheduledPosts       ScheduledPost[]
   commentOpportunities CommentOpportunity[]
+  campaigns            Campaign[]
 }
 
 model PlatformConnection {
@@ -55,6 +65,7 @@ model ScheduledPost {
   error       String?
   results     String    @default("{}") // JSON: { FACEBOOK: { success, postId, postUrl } }
   notes       String?
+  contentPiece ContentPiece?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -89,4 +100,44 @@ model CommentDraft {
   content       String
   isApproved    Boolean            @default(false)
   createdAt     DateTime           @default(now())
+}
+
+model Campaign {
+  id          String         @id @default(cuid())
+  brandId     String
+  brand       Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  status      String         @default("draft") // draft | generating | completed
+  analysis    String
+  trends      String?        // JSON string
+  metadata    String?        // JSON string
+  createdAt   DateTime       @default(now())
+  content     ContentPiece[]
+}
+
+model ContentPiece {
+  id                String         @id @default(cuid())
+  campaignId        String
+  campaign          Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  brandId           String
+  day               Int
+  platform          String
+  format            String
+  title             String
+  hook              String
+  body              String
+  visualPrompt      String
+  status            String
+  mediaUrl          String?
+  mediaType         String?
+  audioUrl          String?
+  scheduledAt       String?
+  keywords          String?        // JSON string
+  performanceScore  Int?
+  script            String?
+  referenceImageUrl String?
+  metadata          String?        // JSON string
+  scheduledPostId   String?        @unique
+  scheduledPost     ScheduledPost? @relation(fields: [scheduledPostId], references: [id])
 }
