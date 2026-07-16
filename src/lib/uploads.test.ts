@@ -14,7 +14,7 @@ vi.mock('fs', () => ({
 const { randomUUID } = vi.hoisted(() => ({ randomUUID: vi.fn(() => 'fixed-uuid') }))
 vi.mock('crypto', () => ({ randomUUID }))
 
-import { sanitizeFilename, isAllowedImageExtension, isWithinSizeLimit, saveLogoBuffer } from './uploads'
+import { sanitizeFilename, isAllowedImageExtension, isWithinSizeLimit, saveLogoBuffer, isValidLogoUrl } from './uploads'
 
 beforeEach(() => {
   mkdirSync.mockReset()
@@ -66,5 +66,31 @@ describe('saveLogoBuffer', () => {
       Buffer.from('fake-image-bytes')
     )
     expect(url).toBe('/uploads/logos/fixed-uuid-my-logo.png')
+  })
+})
+
+describe('isValidLogoUrl', () => {
+  it('accepts a relative path starting with /', () => {
+    expect(isValidLogoUrl('/uploads/logos/abc-logo.png')).toBe(true)
+  })
+
+  it('accepts an absolute https URL', () => {
+    expect(isValidLogoUrl('https://example.com/logo.png')).toBe(true)
+  })
+
+  it('accepts an absolute http URL', () => {
+    expect(isValidLogoUrl('http://example.com/logo.png')).toBe(true)
+  })
+
+  it('rejects a bare filename with no leading slash and no scheme', () => {
+    expect(isValidLogoUrl('logo.png')).toBe(false)
+  })
+
+  it('rejects an empty string', () => {
+    expect(isValidLogoUrl('')).toBe(false)
+  })
+
+  it('rejects a non-http(s) scheme', () => {
+    expect(isValidLogoUrl('ftp://example.com/logo.png')).toBe(false)
   })
 })

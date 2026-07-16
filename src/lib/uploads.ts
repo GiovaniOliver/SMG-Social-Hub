@@ -18,6 +18,11 @@ export function isWithinSizeLimit(byteLength: number): boolean {
   return byteLength <= MAX_BYTES
 }
 
+export function isValidLogoUrl(value: string): boolean {
+  if (value.startsWith('/')) return true
+  return /^https?:\/\//i.test(value)
+}
+
 export function saveLogoBuffer(buffer: Buffer, originalFilename: string): string {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true })
   const filename = `${randomUUID()}-${sanitizeFilename(originalFilename)}`

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { getAllBrands } from '@/lib/brands'
+import { isValidLogoUrl } from '@/lib/uploads'
 
 const CreateBrandSchema = z.object({
   name: z.string().min(1).max(100),
@@ -11,7 +12,7 @@ const CreateBrandSchema = z.object({
     .max(100)
     .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers, and hyphens only'),
   description: z.string().max(500).optional(),
-  logoUrl: z.string().url().optional(),
+  logoUrl: z.string().refine(isValidLogoUrl, { message: 'logoUrl must be an absolute http(s) URL or a path starting with /' }).optional(),
   voice: z
     .object({
       tone: z.string().default(''),

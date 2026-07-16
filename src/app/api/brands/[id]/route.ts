@@ -2,11 +2,12 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { getBrandById } from '@/lib/brands'
+import { isValidLogoUrl } from '@/lib/uploads'
 
 const UpdateBrandSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(500).nullable().optional(),
-  logoUrl: z.string().url().nullable().optional(),
+  logoUrl: z.string().refine(isValidLogoUrl, { message: 'logoUrl must be an absolute http(s) URL or a path starting with /' }).nullable().optional(),
   isActive: z.boolean().optional(),
   voice: z
     .object({
