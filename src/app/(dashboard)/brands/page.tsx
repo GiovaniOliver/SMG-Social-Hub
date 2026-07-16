@@ -506,11 +506,52 @@ function CreateBrandForm({ onCreated, onCancel }: CreateBrandFormProps) {
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [description, setDescription] = useState('')
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
+  const [engine, setEngine] = useState<ContentEngineValues>({
+    niche: '',
+    audience: '',
+    engineTone: '',
+    goals: [],
+    website: '',
+    appStoreUrl: '',
+  })
+  const [socialUrls, setSocialUrls] = useState<Partial<Record<Platform, string>>>({})
+  const [voice, setVoice] = useState<BrandVoice>(emptyVoice())
+  const [context, setContext] = useState<BrandContext>(emptyContext())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   function derivedSlug(n: string) {
     return n.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+  }
+
+  function handleExtracted(info: ExtractedBrandInfo) {
+    setEngine((prev) => ({
+      niche: info.niche ?? prev.niche,
+      audience: info.audience ?? prev.audience,
+      engineTone: info.tone ?? prev.engineTone,
+      goals: info.goals ?? prev.goals,
+      website: prev.website,
+      appStoreUrl: prev.appStoreUrl,
+    }))
+    if (info.voiceTone || info.voicePersonality) {
+      setVoice((prev) => ({
+        ...prev,
+        tone: info.voiceTone ?? prev.tone,
+        personality: info.voicePersonality ?? prev.personality,
+      }))
+    }
+    if (info.products || info.targetAudience || info.keyMessages) {
+      setContext((prev) => ({
+        ...prev,
+        products: info.products ?? prev.products,
+        targetAudience: info.targetAudience ?? prev.targetAudience,
+        keyMessages: info.keyMessages ?? prev.keyMessages,
+      }))
+    }
+    if (info.suggestedLogoUrl && !logoUrl) {
+      setLogoUrl(info.suggestedLogoUrl)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -526,12 +567,20 @@ function CreateBrandForm({ onCreated, onCancel }: CreateBrandFormProps) {
           name: name.trim(),
           slug: slug.trim() || derivedSlug(name.trim()),
           description: description.trim() || undefined,
-          voice: emptyVoice(),
-          context: emptyContext(),
+          logoUrl: logoUrl || undefined,
+          voice,
+          context,
+          niche: engine.niche.trim() || undefined,
+          audience: engine.audience.trim() || undefined,
+          tone: engine.engineTone.trim() || undefined,
+          goals: engine.goals,
+          website: engine.website.trim() || undefined,
+          appStoreUrl: engine.appStoreUrl.trim() || undefined,
+          socialUrls,
         }),
       })
 
-      const json = await res.json() as { success: boolean; data?: BrandListItem; error?: string }
+      const json = (await res.json()) as { success: boolean; data?: BrandListItem; error?: string }
       if (!json.success || !json.data) throw new Error(json.error ?? 'Create failed')
 
       onCreated(json.data)
@@ -545,6 +594,10 @@ function CreateBrandForm({ onCreated, onCancel }: CreateBrandFormProps) {
   return (
     <form onSubmit={handleSubmit} className="card space-y-4">
       <h3 className="text-sm font-semibold text-white">New Brand</h3>
+
+      <ExtractionPanel onExtracted={handleExtracted} />
+
+      <LogoUploadField logoUrl={logoUrl} onChange={setLogoUrl} />
 
       <div>
         <label className="block text-xs font-medium text-slate-400 mb-1.5">Name *</label>
@@ -582,6 +635,10 @@ function CreateBrandForm({ onCreated, onCancel }: CreateBrandFormProps) {
         />
       </div>
 
+      <ContentEngineFields values={engine} onChange={setEngine} />
+
+      <SocialLinksFields values={socialUrls} onChange={setSocialUrls} />
+
       {error && (
         <div className="flex items-start gap-2 bg-red-950 border border-red-800 rounded-md px-3 py-2">
           <AlertTriangle size={14} className="text-red-400 mt-0.5 flex-shrink-0" />
@@ -594,7 +651,9 @@ function CreateBrandForm({ onCreated, onCancel }: CreateBrandFormProps) {
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
           {saving ? 'Creating...' : 'Create Brand'}
         </button>
-        <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
+        <button type="button" onClick={onCancel} className="btn-secondary">
+          Cancel
+        </button>
       </div>
     </form>
   )
