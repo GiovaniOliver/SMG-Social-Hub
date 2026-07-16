@@ -20,7 +20,7 @@ export async function scanFolder(folderPath: string): Promise<FolderScanResult> 
   const entries = fs.readdirSync(folderPath)
   const filePaths = entries
     .map((name) => path.join(folderPath, name))
-    .filter((p) => fs.statSync(p).isFile())
+    .filter((p) => fs.lstatSync(p).isFile())
 
   const suggestedLogoPath = filePaths.find((p) => isLikelyLogoFile(p)) ?? null
 

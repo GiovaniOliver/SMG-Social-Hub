@@ -4,7 +4,7 @@ import fs from 'fs'
 import { scanFolder } from '@/lib/brand-extraction/folder-walker'
 import { buildExtractionPrompt, parseExtractionResponse } from '@/lib/brand-extraction/prompt'
 import { generateText } from '@/lib/ai/providers'
-import { saveLogoBuffer } from '@/lib/uploads'
+import { isWithinSizeLimit, saveLogoBuffer } from '@/lib/uploads'
 
 const schema = z.object({ folderPath: z.string().min(1) })
 
@@ -29,7 +29,9 @@ export async function POST(req: NextRequest) {
     let suggestedLogoUrl: string | undefined
     if (suggestedLogoPath) {
       const buffer = fs.readFileSync(suggestedLogoPath)
-      suggestedLogoUrl = saveLogoBuffer(buffer, suggestedLogoPath.split(/[\\/]/).pop() ?? 'logo.png')
+      if (isWithinSizeLimit(buffer.byteLength)) {
+        suggestedLogoUrl = saveLogoBuffer(buffer, suggestedLogoPath.split(/[\\/]/).pop() ?? 'logo.png')
+      }
     }
 
     const prompt = buildExtractionPrompt(text, sourceNote)
