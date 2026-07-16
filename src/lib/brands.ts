@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
-import type { BrandVoice, BrandContext } from '@/types'
+import type { BrandVoice, BrandContext, Platform } from '@/types'
+import { PLATFORMS } from '@/types'
 
 export interface ParsedBrand {
   id: string
@@ -9,6 +10,15 @@ export interface ParsedBrand {
   logoUrl: string | null
   voice: BrandVoice
   context: BrandContext
+  niche: string | null
+  audience: string | null
+  tone: string | null
+  goals: string[]
+  website: string | null
+  websiteContent: string | null
+  appStoreUrl: string | null
+  socialUrls: Partial<Record<Platform, string>>
+  localFolderPath: string | null
   isActive: boolean
   createdAt: Date
   updatedAt: Date
@@ -42,6 +52,31 @@ function parseContext(raw: string): BrandContext {
   }
 }
 
+export function parseGoals(raw: string | null): string[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((g): g is string => typeof g === 'string') : []
+  } catch {
+    return []
+  }
+}
+
+export function parseSocialUrls(raw: string | null): Partial<Record<Platform, string>> {
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    const result: Partial<Record<Platform, string>> = {}
+    for (const platform of PLATFORMS) {
+      const value = parsed[platform]
+      if (typeof value === 'string' && value.trim()) result[platform] = value.trim()
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
+
 function mapBrand(brand: {
   id: string
   name: string
@@ -50,6 +85,15 @@ function mapBrand(brand: {
   logoUrl: string | null
   voice: string
   context: string
+  niche: string | null
+  audience: string | null
+  tone: string | null
+  goals: string | null
+  website: string | null
+  websiteContent: string | null
+  appStoreUrl: string | null
+  socialUrls: string | null
+  localFolderPath: string | null
   isActive: boolean
   createdAt: Date
   updatedAt: Date
@@ -58,6 +102,8 @@ function mapBrand(brand: {
     ...brand,
     voice: parseVoice(brand.voice),
     context: parseContext(brand.context),
+    goals: parseGoals(brand.goals),
+    socialUrls: parseSocialUrls(brand.socialUrls),
   }
 }
 
