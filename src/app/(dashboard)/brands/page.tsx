@@ -11,8 +11,13 @@ import {
   AlertTriangle,
   CheckCircle2,
 } from 'lucide-react'
-import type { BrandVoice, BrandContext } from '@/types'
+import type { BrandVoice, BrandContext, Platform } from '@/types'
 import { TagInput, FaqEditor } from './form-controls'
+import { LogoUploadField } from './logo-upload'
+import { ContentEngineFields, type ContentEngineValues } from './content-engine-fields'
+import { SocialLinksFields } from './social-links-fields'
+import { ExtractionPanel } from './extraction-panel'
+import type { ExtractedBrandInfo } from '@/lib/brand-extraction/types'
 
 // ---------- Types ----------
 
@@ -30,9 +35,17 @@ interface BrandDetail {
   name: string
   slug: string
   description: string | null
+  logoUrl: string | null
   isActive: boolean
   voice: BrandVoice
   context: BrandContext
+  niche: string | null
+  audience: string | null
+  tone: string | null
+  goals: string[]
+  website: string | null
+  appStoreUrl: string | null
+  socialUrls: Partial<Record<Platform, string>>
 }
 
 // ---------- Helpers ----------
@@ -56,14 +69,53 @@ interface BrandEditFormProps {
 function BrandEditForm({ brand, onSaved, onCancel }: BrandEditFormProps) {
   const [name, setName] = useState(brand.name)
   const [description, setDescription] = useState(brand.description ?? '')
+  const [logoUrl, setLogoUrl] = useState<string | null>(brand.logoUrl)
   const [voice, setVoice] = useState<BrandVoice>({ ...brand.voice })
   const [context, setContext] = useState<BrandContext>({
     ...brand.context,
     faqs: brand.context.faqs ?? [],
   })
+  const [engine, setEngine] = useState<ContentEngineValues>({
+    niche: brand.niche ?? '',
+    audience: brand.audience ?? '',
+    engineTone: brand.tone ?? '',
+    goals: brand.goals,
+    website: brand.website ?? '',
+    appStoreUrl: brand.appStoreUrl ?? '',
+  })
+  const [socialUrls, setSocialUrls] = useState<Partial<Record<Platform, string>>>(brand.socialUrls)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+
+  function handleExtracted(info: ExtractedBrandInfo) {
+    setEngine((prev) => ({
+      niche: info.niche ?? prev.niche,
+      audience: info.audience ?? prev.audience,
+      engineTone: info.tone ?? prev.engineTone,
+      goals: info.goals ?? prev.goals,
+      website: prev.website,
+      appStoreUrl: prev.appStoreUrl,
+    }))
+    if (info.voiceTone || info.voicePersonality) {
+      setVoice((prev) => ({
+        ...prev,
+        tone: info.voiceTone ?? prev.tone,
+        personality: info.voicePersonality ?? prev.personality,
+      }))
+    }
+    if (info.products || info.targetAudience || info.keyMessages) {
+      setContext((prev) => ({
+        ...prev,
+        products: info.products ?? prev.products,
+        targetAudience: info.targetAudience ?? prev.targetAudience,
+        keyMessages: info.keyMessages ?? prev.keyMessages,
+      }))
+    }
+    if (info.suggestedLogoUrl && !logoUrl) {
+      setLogoUrl(info.suggestedLogoUrl)
+    }
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -78,6 +130,7 @@ function BrandEditForm({ brand, onSaved, onCancel }: BrandEditFormProps) {
         body: JSON.stringify({
           name: name.trim() || brand.name,
           description: description.trim() || null,
+          logoUrl: logoUrl || null,
           voice: {
             tone: voice.tone,
             personality: voice.personality,
@@ -90,10 +143,17 @@ function BrandEditForm({ brand, onSaved, onCancel }: BrandEditFormProps) {
             targetAudience: context.targetAudience,
             keyMessages: context.keyMessages,
           },
+          niche: engine.niche.trim() || null,
+          audience: engine.audience.trim() || null,
+          tone: engine.engineTone.trim() || null,
+          goals: engine.goals,
+          website: engine.website.trim() || null,
+          appStoreUrl: engine.appStoreUrl.trim() || null,
+          socialUrls,
         }),
       })
 
-      const json = await res.json() as { success: boolean; error?: string }
+      const json = (await res.json()) as { success: boolean; error?: string }
       if (!json.success) throw new Error(json.error ?? 'Save failed')
 
       setSuccess(true)
@@ -101,8 +161,16 @@ function BrandEditForm({ brand, onSaved, onCancel }: BrandEditFormProps) {
         ...brand,
         name: name.trim() || brand.name,
         description: description.trim() || null,
+        logoUrl,
         voice: { ...voice },
         context: { ...context },
+        niche: engine.niche.trim() || null,
+        audience: engine.audience.trim() || null,
+        tone: engine.engineTone.trim() || null,
+        goals: engine.goals,
+        website: engine.website.trim() || null,
+        appStoreUrl: engine.appStoreUrl.trim() || null,
+        socialUrls,
       })
 
       setTimeout(() => setSuccess(false), 3000)
@@ -115,9 +183,13 @@ function BrandEditForm({ brand, onSaved, onCancel }: BrandEditFormProps) {
 
   return (
     <form onSubmit={handleSave} className="space-y-6">
+      <ExtractionPanel onExtracted={handleExtracted} />
+
       {/* Basic Info */}
       <div className="space-y-3">
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Basic Info</h3>
+
+        <LogoUploadField logoUrl={logoUrl} onChange={setLogoUrl} />
 
         <div>
           <label className="block text-xs font-medium text-slate-400 mb-1.5">Brand Name</label>
@@ -213,6 +285,10 @@ function BrandEditForm({ brand, onSaved, onCancel }: BrandEditFormProps) {
           onChange={(faqs) => setContext({ ...context, faqs })}
         />
       </div>
+
+      <ContentEngineFields values={engine} onChange={setEngine} />
+
+      <SocialLinksFields values={socialUrls} onChange={setSocialUrls} />
 
       {/* Actions */}
       {error && (
