@@ -1,11 +1,9 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
 import type { BrandVoice, BrandContext, Platform } from '@/types'
 export { CONTENT_TYPES } from './content-types'
 export type { ContentType } from './content-types'
 import { CONTENT_TYPES } from './content-types'
 import type { ContentType } from './content-types'
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '')
+import { generateText } from './providers'
 
 const PLATFORM_CHAR_LIMITS: Record<Platform, number> = {
   TWITTER: 280,
@@ -128,18 +126,12 @@ async function generateForPlatform(
     ? `Topic/Prompt: ${topic.trim()}`
     : `Write a ${CONTENT_TYPES[contentType]} post for ${brandName}. Choose a relevant topic from the brand context.`
 
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash-lite',
-    systemInstruction: systemPrompt,
-    generationConfig: {
-      temperature: 0.8,
-      maxOutputTokens: 1024,
-      responseMimeType: 'application/json',
-    },
+  const text = await generateText(userPrompt, {
+    systemPrompt,
+    temperature: 0.8,
+    maxTokens: 1024,
+    jsonMode: true,
   })
-
-  const result = await model.generateContent(userPrompt)
-  const text = result.response.text()
   const { content, hook, tip } = parseResponse(text)
   const truncated = content.length > charLimit ? content.slice(0, charLimit - 1).trimEnd() : content
 

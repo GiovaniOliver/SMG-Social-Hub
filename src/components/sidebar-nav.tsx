@@ -11,6 +11,7 @@ import {
   MessageSquare,
   Link2,
   Building2,
+  Settings,
   LogOut,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { href: '/comments', label: 'Comments', icon: MessageSquare },
   { href: '/brands', label: 'Brands', icon: Building2 },
   { href: '/connect', label: 'Connect', icon: Link2 },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
 export function SidebarNav() {

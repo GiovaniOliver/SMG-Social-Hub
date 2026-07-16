@@ -1,22 +1,9 @@
-import Anthropic from '@anthropic-ai/sdk'
 import type { BrandVoice, BrandContext } from '@/types'
+import { generateText } from './providers'
 
 // Fast, cost-efficient model for high-volume comment replies. Bump to
 // 'claude-opus-4-8' if reply quality matters more than cost/latency.
 const MODEL = 'claude-haiku-4-5'
-
-/**
- * Lazily construct the Anthropic client so a missing key surfaces as a clear
- * error at reply time rather than crashing the module at import (which would
- * take down every route that imports this file).
- */
-function getClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY
-  if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY is not configured')
-  }
-  return new Anthropic({ apiKey })
-}
 
 const PLATFORM_LIMITS: Record<string, number> = {
   TWITTER: 280,
@@ -169,17 +156,12 @@ export async function generateReply(params: ReplyGeneratorParams): Promise<Gener
   const systemPrompt = buildSystemPrompt({ ...params, platform }, hardLimit)
   const userPrompt = buildUserPrompt(params)
 
-  const message = await getClient().messages.create({
+  const text = await generateText(userPrompt, {
+    provider: 'anthropic',
     model: MODEL,
-    max_tokens: 1024,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userPrompt }],
+    systemPrompt,
+    maxTokens: 1024,
   })
-
-  const text = message.content
-    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-    .map((block) => block.text)
-    .join('')
 
   const reply = parseModelResponse(text)
 
