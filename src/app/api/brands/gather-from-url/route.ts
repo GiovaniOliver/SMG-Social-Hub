@@ -4,6 +4,7 @@ import { stripHtmlToText } from '@/lib/brand-extraction/html-to-text'
 import { extractSuggestedLogo } from '@/lib/brand-extraction/extract-meta'
 import { buildExtractionPrompt, parseExtractionResponse } from '@/lib/brand-extraction/prompt'
 import { generateText } from '@/lib/ai/providers'
+import { isPublicHttpUrl } from '@/lib/security/url-safety'
 
 const schema = z.object({ url: z.string().url() })
 
@@ -16,6 +17,10 @@ export async function POST(req: NextRequest) {
     }
 
     const { url } = parsed.data
+
+    if (!(await isPublicHttpUrl(url))) {
+      return NextResponse.json({ success: false, error: 'That URL is not allowed.' }, { status: 400 })
+    }
 
     const pageRes = await fetch(url, { signal: AbortSignal.timeout(10_000) })
     if (!pageRes.ok) {
