@@ -27,11 +27,11 @@ const UpdateBrandSchema = z.object({
   niche: z.string().max(300).nullable().optional(),
   audience: z.string().max(300).nullable().optional(),
   tone: z.string().max(300).nullable().optional(),
-  goals: z.array(z.string()).optional(),
+  goals: z.array(z.string()).nullable().optional(),
   website: z.string().url().nullable().optional(),
   websiteContent: z.string().max(20000).nullable().optional(),
   appStoreUrl: z.string().url().nullable().optional(),
-  socialUrls: z.record(z.string(), z.string().url()).optional(),
+  socialUrls: z.record(z.string(), z.string().url()).nullable().optional(),
   localFolderPath: z.string().max(500).nullable().optional(),
 })
 
@@ -83,8 +83,8 @@ export async function PATCH(
         ...rest,
         ...(voice !== undefined ? { voice: JSON.stringify(voice) } : {}),
         ...(context !== undefined ? { context: JSON.stringify(context) } : {}),
-        ...(goals !== undefined ? { goals: JSON.stringify(goals) } : {}),
-        ...(socialUrls !== undefined ? { socialUrls: JSON.stringify(socialUrls) } : {}),
+        ...(goals !== undefined ? { goals: JSON.stringify(goals ?? []) } : {}),
+        ...(socialUrls !== undefined ? { socialUrls: JSON.stringify(socialUrls ?? {}) } : {}),
       },
     })
 
