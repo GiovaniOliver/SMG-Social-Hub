@@ -28,6 +28,14 @@ const CreateBrandSchema = z.object({
       keyMessages: z.array(z.string()).default([]),
     })
     .optional(),
+  niche: z.string().max(300).optional(),
+  audience: z.string().max(300).optional(),
+  tone: z.string().max(300).optional(),
+  goals: z.array(z.string()).default([]).optional(),
+  website: z.string().url().optional(),
+  websiteContent: z.string().max(20000).optional(),
+  appStoreUrl: z.string().url().optional(),
+  socialUrls: z.record(z.string(), z.string().url()).optional(),
 })
 
 export async function GET() {
@@ -68,7 +76,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { name, slug, description, logoUrl, voice, context } = validated.data
+    const {
+      name, slug, description, logoUrl, voice, context,
+      niche, audience, tone, goals, website, websiteContent, appStoreUrl, socialUrls,
+    } = validated.data
 
     const existing = await prisma.brand.findUnique({ where: { slug } })
     if (existing) {
@@ -86,6 +97,14 @@ export async function POST(request: NextRequest) {
         logoUrl: logoUrl ?? null,
         voice: JSON.stringify(voice ?? {}),
         context: JSON.stringify(context ?? {}),
+        niche: niche ?? null,
+        audience: audience ?? null,
+        tone: tone ?? null,
+        goals: JSON.stringify(goals ?? []),
+        website: website ?? null,
+        websiteContent: websiteContent ?? null,
+        appStoreUrl: appStoreUrl ?? null,
+        socialUrls: JSON.stringify(socialUrls ?? {}),
       },
     })
 

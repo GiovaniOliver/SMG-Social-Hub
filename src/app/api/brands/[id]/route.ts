@@ -24,6 +24,15 @@ const UpdateBrandSchema = z.object({
       keyMessages: z.array(z.string()),
     })
     .optional(),
+  niche: z.string().max(300).nullable().optional(),
+  audience: z.string().max(300).nullable().optional(),
+  tone: z.string().max(300).nullable().optional(),
+  goals: z.array(z.string()).optional(),
+  website: z.string().url().nullable().optional(),
+  websiteContent: z.string().max(20000).nullable().optional(),
+  appStoreUrl: z.string().url().nullable().optional(),
+  socialUrls: z.record(z.string(), z.string().url()).optional(),
+  localFolderPath: z.string().max(500).nullable().optional(),
 })
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -61,7 +70,7 @@ export async function PATCH(
       )
     }
 
-    const { voice, context, ...rest } = validated.data
+    const { voice, context, goals, socialUrls, ...rest } = validated.data
 
     const existing = await prisma.brand.findUnique({ where: { id } })
     if (!existing) {
@@ -74,6 +83,8 @@ export async function PATCH(
         ...rest,
         ...(voice !== undefined ? { voice: JSON.stringify(voice) } : {}),
         ...(context !== undefined ? { context: JSON.stringify(context) } : {}),
+        ...(goals !== undefined ? { goals: JSON.stringify(goals) } : {}),
+        ...(socialUrls !== undefined ? { socialUrls: JSON.stringify(socialUrls) } : {}),
       },
     })
 
