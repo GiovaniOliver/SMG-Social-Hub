@@ -22,6 +22,9 @@ model Brand {
   goals          String?  // JSON string array
   website        String?
   websiteContent String?
+  appStoreUrl    String?  // NEW
+  socialUrls     String?  // NEW — JSON: { FACEBOOK?, INSTAGRAM?, TWITTER?, LINKEDIN?, TIKTOK?, YOUTUBE?, REDDIT? }
+  localFolderPath String? // NEW — last-scanned local folder path, convenience only
   brandKit       String?  // JSON string
   engineSettings String?  // JSON string (BrandFlow per-brand settings)
   isActive    Boolean  @default(true)
