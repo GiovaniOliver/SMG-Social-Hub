@@ -43,6 +43,9 @@ prisma/dev.db-journal
 prisma/*.db
 prisma/*.db-journal
 
+# Uploaded brand assets
+/public/uploads/
+
 # AI provider keys (ported from BrandFlow)
 .provider-keys.json
 .provider-keys.json.bak
