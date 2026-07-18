@@ -4,7 +4,7 @@ import type { ParsedBrand } from '@/lib/brands'
 
 export type ContentFormat = 'Image' | 'Video' | 'Short' | 'Article' | 'Thread'
 
-const CONTENT_FORMATS: ContentFormat[] = ['Image', 'Video', 'Short', 'Article', 'Thread']
+export const CONTENT_FORMATS: ContentFormat[] = ['Image', 'Video', 'Short', 'Article', 'Thread']
 
 export interface RoadmapWeek {
   week: number
@@ -79,11 +79,11 @@ function extractJsonArray(text: string): unknown {
   }
 }
 
-function isPlatform(value: unknown): value is Platform {
+export function isPlatform(value: unknown): value is Platform {
   return typeof value === 'string' && (PLATFORMS as string[]).includes(value)
 }
 
-function isContentFormat(value: unknown): value is ContentFormat {
+export function isContentFormat(value: unknown): value is ContentFormat {
   return typeof value === 'string' && (CONTENT_FORMATS as string[]).includes(value)
 }
 

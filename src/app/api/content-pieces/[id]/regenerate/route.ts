@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getBrandById } from '@/lib/brands'
 import { generateText } from '@/lib/ai/providers'
-import { buildHydratePrompt, parseHydrateResponse, type SkeletonPiece } from '@/lib/campaigns/prompts'
-import type { Platform } from '@/types'
+import {
+  buildHydratePrompt,
+  parseHydrateResponse,
+  isPlatform,
+  isContentFormat,
+  type SkeletonPiece,
+} from '@/lib/campaigns/prompts'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -14,6 +19,14 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
     if (!piece) {
       return NextResponse.json({ success: false, error: 'Content piece not found' }, { status: 404 })
     }
+
+    if (!isPlatform(piece.platform) || !isContentFormat(piece.format)) {
+      return NextResponse.json(
+        { success: false, error: `Cannot regenerate: unrecognized platform/format on this piece (${piece.platform}/${piece.format}). Edit it manually first.` },
+        { status: 422 }
+      )
+    }
+
     const brand = await getBrandById(piece.brandId)
     if (!brand) {
       return NextResponse.json({ success: false, error: 'Brand not found' }, { status: 404 })
@@ -21,8 +34,8 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
 
     const skeletonPiece: SkeletonPiece = {
       day: piece.day,
-      platform: piece.platform as Platform,
-      format: piece.format as SkeletonPiece['format'],
+      platform: piece.platform,
+      format: piece.format,
       title: piece.title,
     }
 

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { PLATFORMS } from '@/types'
 import type { Platform } from '@/types'
+import { CONTENT_FORMATS, type ContentFormat } from '@/lib/campaigns/prompts'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -12,7 +13,7 @@ const UpdateSchema = z.object({
   body: z.string().max(10000).optional(),
   visualPrompt: z.string().max(4000).optional(),
   platform: z.enum(PLATFORMS as [Platform, ...Platform[]]).optional(),
-  format: z.enum(['Image', 'Video', 'Short', 'Article', 'Thread']).optional(),
+  format: z.enum(CONTENT_FORMATS as [ContentFormat, ...ContentFormat[]]).optional(),
   day: z.number().int().min(1).optional(),
 })
 
