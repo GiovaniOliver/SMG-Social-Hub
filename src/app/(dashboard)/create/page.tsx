@@ -126,6 +126,21 @@ function ResultCard({ result, onSchedule }: ResultCardProps) {
           {/* Char bar */}
           <CharBar count={result.characterCount} limit={result.characterLimit} />
 
+          {/* Media */}
+          {result.imageUrl && (
+            <img
+              src={result.imageUrl}
+              alt="Generated visual"
+              className="w-full rounded-lg border border-slate-700"
+            />
+          )}
+          {result.videoUrl && (
+            <video src={result.videoUrl} controls className="w-full rounded-lg border border-slate-700" />
+          )}
+          {result.mediaWarning && (
+            <p className="text-xs text-yellow-400">Media generation failed: {result.mediaWarning}</p>
+          )}
+
           {/* Tip (collapsible) */}
           {result.tip && (
             <div>
@@ -196,6 +211,8 @@ export default function CreatePage() {
   const [contentType, setContentType] = useState<ContentType>('educational')
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(['INSTAGRAM', 'LINKEDIN'])
   const [topic, setTopic] = useState('')
+  const [wantImage, setWantImage] = useState(false)
+  const [wantVideo, setWantVideo] = useState(false)
 
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -218,6 +235,22 @@ export default function CreatePage() {
     )
   }
 
+  function toggleImage() {
+    setWantImage((v) => {
+      const next = !v
+      if (next) setWantVideo(false)
+      return next
+    })
+  }
+
+  function toggleVideo() {
+    setWantVideo((v) => {
+      const next = !v
+      if (next) setWantImage(false)
+      return next
+    })
+  }
+
   async function handleGenerate() {
     if (!brandId || selectedPlatforms.length === 0) return
     setGenerating(true)
@@ -228,7 +261,14 @@ export default function CreatePage() {
       const res = await fetch('/api/content/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brandId, platforms: selectedPlatforms, contentType, topic }),
+        body: JSON.stringify({
+          brandId,
+          platforms: selectedPlatforms,
+          contentType,
+          topic,
+          generateImage: wantImage,
+          generateVideo: wantVideo,
+        }),
       })
       const json = await res.json() as { success: boolean; data?: GeneratedPost[]; error?: string }
 
@@ -247,6 +287,8 @@ export default function CreatePage() {
     sessionStorage.setItem('smg_prefill_content', result.content)
     sessionStorage.setItem('smg_prefill_platform', result.platform)
     sessionStorage.setItem('smg_prefill_brandId', brandId)
+    const mediaUrl = result.imageUrl ?? result.videoUrl
+    if (mediaUrl) sessionStorage.setItem('smg_prefill_media', mediaUrl)
     window.location.href = '/schedule'
   }
 
@@ -349,6 +391,42 @@ export default function CreatePage() {
             </div>
             {selectedPlatforms.length === 0 && (
               <p className="text-xs text-yellow-400 mt-2">Select at least one platform.</p>
+            )}
+          </div>
+
+          {/* Media */}
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-5">
+            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+              Media (optional, uses Runware)
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={toggleImage}
+                className={clsx(
+                  'flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors',
+                  wantImage
+                    ? 'border-blue-500/60 bg-blue-500/10 text-white'
+                    : 'border-slate-700 bg-slate-900 text-slate-400 hover:text-white hover:border-slate-600'
+                )}
+              >
+                Generate image
+              </button>
+              <button
+                type="button"
+                onClick={toggleVideo}
+                className={clsx(
+                  'flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors',
+                  wantVideo
+                    ? 'border-blue-500/60 bg-blue-500/10 text-white'
+                    : 'border-slate-700 bg-slate-900 text-slate-400 hover:text-white hover:border-slate-600'
+                )}
+              >
+                Generate video
+              </button>
+            </div>
+            {wantVideo && (
+              <p className="text-xs text-slate-500 mt-2">Video generation can take up to 2 minutes.</p>
             )}
           </div>
 

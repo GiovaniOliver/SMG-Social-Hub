@@ -74,15 +74,18 @@ export default function SchedulePage() {
     const prefill = sessionStorage.getItem('smg_prefill_content')
     const prefillPlatform = sessionStorage.getItem('smg_prefill_platform') as Platform | null
     const prefillBrandId = sessionStorage.getItem('smg_prefill_brandId')
+    const prefillMedia = sessionStorage.getItem('smg_prefill_media')
     if (prefill) {
       sessionStorage.removeItem('smg_prefill_content')
       sessionStorage.removeItem('smg_prefill_platform')
       sessionStorage.removeItem('smg_prefill_brandId')
+      sessionStorage.removeItem('smg_prefill_media')
       setForm((prev) => ({
         ...prev,
         content: prefill,
         platforms: prefillPlatform ? [prefillPlatform] : prev.platforms,
         brandId: prefillBrandId || prev.brandId,
+        mediaUrlsRaw: prefillMedia || prev.mediaUrlsRaw,
       }))
     }
   }, [])
