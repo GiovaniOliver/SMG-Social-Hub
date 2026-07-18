@@ -246,6 +246,7 @@ export default function CreatePage() {
   function handleSchedule(result: GeneratedPost) {
     sessionStorage.setItem('smg_prefill_content', result.content)
     sessionStorage.setItem('smg_prefill_platform', result.platform)
+    sessionStorage.setItem('smg_prefill_brandId', brandId)
     window.location.href = '/schedule'
   }
 

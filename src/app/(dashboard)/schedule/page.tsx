@@ -73,13 +73,16 @@ export default function SchedulePage() {
   useEffect(() => {
     const prefill = sessionStorage.getItem('smg_prefill_content')
     const prefillPlatform = sessionStorage.getItem('smg_prefill_platform') as Platform | null
+    const prefillBrandId = sessionStorage.getItem('smg_prefill_brandId')
     if (prefill) {
       sessionStorage.removeItem('smg_prefill_content')
       sessionStorage.removeItem('smg_prefill_platform')
+      sessionStorage.removeItem('smg_prefill_brandId')
       setForm((prev) => ({
         ...prev,
         content: prefill,
         platforms: prefillPlatform ? [prefillPlatform] : prev.platforms,
+        brandId: prefillBrandId || prev.brandId,
       }))
     }
   }, [])

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { PLATFORMS, PLATFORM_LABELS } from '@/types'
 import type { Platform } from '@/types'
 import { ConnectPlatformCard } from './connect-platform-card'
+import { SeedBrandButton } from './seed-brand-button'
 
 async function getConnections(brandId?: string) {
   if (!brandId) {
@@ -60,12 +61,7 @@ export default async function ConnectPage({
       {!brand && (
         <div className="card text-center py-10">
           <p className="text-slate-400 mb-3">No brands found in the database.</p>
-          <a
-            href="/api/seed"
-            className="btn-primary inline-block"
-          >
-            Seed SnapRegister brand
-          </a>
+          <SeedBrandButton />
         </div>
       )}
 
