@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
           hook: p.hook,
           body: p.body,
           visualPrompt: p.visualPrompt,
-          status: 'draft',
+          status: p.failed ? 'failed' : 'draft',
         })),
       })
 
@@ -65,7 +65,9 @@ export async function POST(req: NextRequest) {
       })
     })
 
-    return NextResponse.json({ success: true, data: campaign })
+    const failedCount = pieces.filter((p) => p.failed).length
+
+    return NextResponse.json({ success: true, data: campaign, failedCount })
   } catch (error) {
     console.error('Campaign generation error:', error)
     const message = error instanceof Error ? error.message : 'Campaign generation failed'
