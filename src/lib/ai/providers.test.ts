@@ -67,6 +67,7 @@ beforeEach(() => {
   delete process.env.GEMINI_API_KEY
   delete process.env.ANTHROPIC_API_KEY
   delete process.env.OPENAI_API_KEY
+  delete process.env.RUNWARE_API_KEY
   existsSync.mockReturnValue(false)
 })
 
@@ -130,6 +131,7 @@ describe('getKeyStatus', () => {
       gemini: true,
       anthropic: false,
       openai: false,
+      runware: false,
       ollamaBaseUrl: 'http://localhost:11434',
       defaultProvider: 'gemini',
     })
@@ -280,5 +282,31 @@ describe('generateText — default provider selection', () => {
 
     expect(text).toBe('default routed')
     expect(anthropicCreate).toHaveBeenCalled()
+  })
+})
+
+describe('getKey — runware', () => {
+  it('prefers a stored runware key over the env fallback', () => {
+    storedKeys({ runware: 'stored-rw' })
+    process.env.RUNWARE_API_KEY = 'env-rw'
+    expect(getKey('runware')).toBe('stored-rw')
+  })
+
+  it('falls back to the env var when no stored runware key exists', () => {
+    existsSync.mockReturnValue(false)
+    process.env.RUNWARE_API_KEY = 'env-rw'
+    expect(getKey('runware')).toBe('env-rw')
+  })
+})
+
+describe('getKeyStatus — runware', () => {
+  it('reports runware as configured when a key is stored', () => {
+    storedKeys({ runware: 'rw-key' })
+    expect(getKeyStatus().runware).toBe(true)
+  })
+
+  it('reports runware as not configured when no key is stored', () => {
+    existsSync.mockReturnValue(false)
+    expect(getKeyStatus().runware).toBe(false)
   })
 })

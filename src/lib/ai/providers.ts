@@ -7,11 +7,13 @@ import type Anthropic from '@anthropic-ai/sdk'
 const KEYS_FILE = path.join(process.cwd(), '.provider-keys.json')
 
 export type AIProvider = 'gemini' | 'anthropic' | 'openai' | 'ollama'
+export type KeyedProvider = AIProvider | 'runware'
 
 export interface ProviderKeys {
   gemini?: string
   anthropic?: string
   openai?: string
+  runware?: string
   ollamaBaseUrl?: string
   defaultProvider?: AIProvider
 }
@@ -20,6 +22,7 @@ export interface ProviderKeyStatus {
   gemini: boolean
   anthropic: boolean
   openai: boolean
+  runware: boolean
   ollamaBaseUrl: string
   defaultProvider: AIProvider
 }
@@ -39,17 +42,18 @@ export function saveKeys(keys: ProviderKeys): void {
   fs.writeFileSync(KEYS_FILE, JSON.stringify(keys, null, 2), 'utf-8')
 }
 
-const ENV_VAR: Partial<Record<AIProvider, string>> = {
+const ENV_VAR: Partial<Record<KeyedProvider, string>> = {
   gemini: 'GEMINI_API_KEY',
   anthropic: 'ANTHROPIC_API_KEY',
   openai: 'OPENAI_API_KEY',
+  runware: 'RUNWARE_API_KEY',
 }
 
-export function getKey(provider: AIProvider): string {
+export function getKey(provider: KeyedProvider): string {
   const stored = loadKeys()
   const envVar = ENV_VAR[provider]
   const envFallback = envVar ? process.env[envVar] : undefined
-  return stored[provider as 'gemini' | 'anthropic' | 'openai'] || envFallback || ''
+  return stored[provider as 'gemini' | 'anthropic' | 'openai' | 'runware'] || envFallback || ''
 }
 
 export function getKeyStatus(): ProviderKeyStatus {
@@ -58,6 +62,7 @@ export function getKeyStatus(): ProviderKeyStatus {
     gemini: !!getKey('gemini'),
     anthropic: !!getKey('anthropic'),
     openai: !!getKey('openai'),
+    runware: !!getKey('runware'),
     ollamaBaseUrl: stored.ollamaBaseUrl || 'http://localhost:11434',
     defaultProvider: stored.defaultProvider || 'gemini',
   }
