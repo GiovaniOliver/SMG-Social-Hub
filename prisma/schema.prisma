@@ -35,6 +35,7 @@ model Brand {
   scheduledPosts       ScheduledPost[]
   commentOpportunities CommentOpportunity[]
   campaigns            Campaign[]
+  generatedContent     GeneratedContent[]
 }
 
 model PlatformConnection {
@@ -143,4 +144,20 @@ model ContentPiece {
   metadata          String?        // JSON string
   scheduledPostId   String?        @unique
   scheduledPost     ScheduledPost? @relation(fields: [scheduledPostId], references: [id])
+}
+
+model GeneratedContent {
+  id           String   @id @default(cuid())
+  brandId      String
+  brand        Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  platform     String
+  contentType  String
+  topic        String?
+  content      String
+  hook         String
+  tip          String?
+  imageUrl     String?
+  videoUrl     String?
+  visualPrompt String?
+  createdAt    DateTime @default(now())
 }
