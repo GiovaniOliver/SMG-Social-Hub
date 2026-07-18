@@ -49,7 +49,10 @@ async function runwareRequest(apiKey: string, tasks: Record<string, unknown>[]):
     body: JSON.stringify(tasks),
   })
   if (!resp.ok) throw new Error(`Runware error ${resp.status}: ${await resp.text()}`)
-  const json = (await resp.json()) as { data?: RunwareTaskResult[] }
+  const json = (await resp.json()) as { data?: RunwareTaskResult[]; errors?: unknown[] }
+  if (json.errors && json.errors.length > 0) {
+    throw new Error(`Runware error: ${JSON.stringify(json.errors[0])}`)
+  }
   return json.data ?? []
 }
 
@@ -97,7 +100,8 @@ export async function generateVideo(prompt: string, options: GenerateVideoOption
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
     const pollData = await runwareRequest(apiKey, [{ taskType: 'getResponse', taskUUID: id }])
     const status = pollData[0]
-    if (status?.status === 'success' && status.videoURL) {
+    if (status?.status === 'success') {
+      if (!status.videoURL) throw new Error('Runware video generation reported success but returned no videoURL')
       return { url: status.videoURL, cost: typeof status.cost === 'number' ? status.cost : 0 }
     }
     if (status?.status === 'error') {

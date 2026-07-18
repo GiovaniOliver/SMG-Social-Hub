@@ -113,4 +113,30 @@ describe('generateVideo', () => {
 
     await expect(generateVideo('x', { pollIntervalMs: 1, pollTimeoutMs: 5 })).rejects.toThrow(/timed out/)
   })
+
+  it('throws immediately if a poll reports success with no videoURL, without waiting for the timeout', async () => {
+    getKey.mockReturnValue('rw-key')
+    const fetchMock = vi.fn()
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ taskType: 'videoInference' }] }) }) // submit
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ status: 'success' }] }) }) // poll: malformed
+    global.fetch = fetchMock as unknown as typeof fetch
+
+    await expect(
+      generateVideo('x', { pollIntervalMs: 1, pollTimeoutMs: 5000 })
+    ).rejects.toThrow(/reported success but returned no videoURL/)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('throws immediately when Runware reports an error in the errors array', async () => {
+    getKey.mockReturnValue('rw-key')
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [], errors: [{ message: 'invalid model' }] }),
+    }) as unknown as typeof fetch
+
+    await expect(generateVideo('x', { pollIntervalMs: 1, pollTimeoutMs: 5000 })).rejects.toThrow(
+      /Runware error:.*invalid model/
+    )
+  })
 })
