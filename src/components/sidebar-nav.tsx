@@ -6,6 +6,8 @@ import { useState } from 'react'
 import {
   LayoutDashboard,
   Sparkles,
+  Rocket,
+  CalendarDays,
   CalendarPlus,
   ClipboardList,
   MessageSquare,
@@ -19,6 +21,8 @@ import clsx from 'clsx'
 const NAV_ITEMS = [
   { href: '/', label: 'Overview', icon: LayoutDashboard },
   { href: '/create', label: 'Content Lab', icon: Sparkles },
+  { href: '/campaigns', label: 'Campaigns', icon: Rocket },
+  { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/schedule', label: 'Schedule', icon: CalendarPlus },
   { href: '/queue', label: 'Queue', icon: ClipboardList },
   { href: '/comments', label: 'Comments', icon: MessageSquare },
