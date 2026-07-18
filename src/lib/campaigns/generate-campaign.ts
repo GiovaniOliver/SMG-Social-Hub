@@ -30,6 +30,7 @@ export interface GenerateCampaignResult {
 }
 
 const SKELETON_BATCH_SIZE = 15
+const HYDRATE_CONCURRENCY = 8
 
 export async function generateCampaignContent(
   params: GenerateCampaignParams
@@ -56,16 +57,7 @@ export async function generateCampaignContent(
     throw new Error('AI did not generate any content pieces for this campaign.')
   }
 
-  const hydrated = await Promise.allSettled(
-    skeleton.map(async (piece): Promise<GeneratedPiece> => {
-      const text = await generateText(buildHydratePrompt(brand, piece), {
-        jsonMode: true,
-        maxTokens: 1024,
-      })
-      const fields = parseHydrateResponse(text)
-      return { ...piece, ...fields, failed: false }
-    })
-  )
+  const hydrated = await hydrateWithConcurrencyLimit(brand, skeleton)
 
   const pieces: GeneratedPiece[] = hydrated.map((result, i) => {
     if (result.status === 'fulfilled') return result.value
@@ -81,4 +73,34 @@ export async function generateCampaignContent(
   })
 
   return { roadmap, pieces }
+}
+
+// Hydrates skeleton pieces with bounded concurrency so a large campaign
+// (up to 60 days * 5 pieces/day = 300 pieces) doesn't fire 300 simultaneous
+// provider requests and trip rate limits.
+async function hydrateWithConcurrencyLimit(
+  brand: ParsedBrand,
+  skeleton: SkeletonPiece[]
+): Promise<PromiseSettledResult<GeneratedPiece>[]> {
+  const results: PromiseSettledResult<GeneratedPiece>[] = new Array(skeleton.length)
+  let nextIndex = 0
+
+  async function worker() {
+    for (let i = nextIndex++; i < skeleton.length; i = nextIndex++) {
+      try {
+        const text = await generateText(buildHydratePrompt(brand, skeleton[i]!), {
+          jsonMode: true,
+          maxTokens: 1024,
+        })
+        const fields = parseHydrateResponse(text)
+        results[i] = { status: 'fulfilled', value: { ...skeleton[i]!, ...fields, failed: false } }
+      } catch (error) {
+        results[i] = { status: 'rejected', reason: error }
+      }
+    }
+  }
+
+  const workerCount = Math.min(HYDRATE_CONCURRENCY, skeleton.length)
+  await Promise.all(Array.from({ length: workerCount }, worker))
+  return results
 }

@@ -75,6 +75,35 @@ describe('generateCampaignContent', () => {
     expect(failed?.body).toContain('provider timeout')
   })
 
+  it('never runs more than 8 hydration calls concurrently', async () => {
+    const skeletonPieces = Array.from({ length: 20 }, (_, i) => ({
+      day: 1,
+      platform: 'INSTAGRAM',
+      format: 'Image',
+      title: `Piece ${i}`,
+    }))
+
+    let inFlight = 0
+    let maxInFlight = 0
+    generateText
+      .mockResolvedValueOnce(JSON.stringify({ weeks: [{ week: 1, theme: 'Launch', goals: [] }] })) // roadmap
+      .mockResolvedValueOnce(JSON.stringify(skeletonPieces)) // skeleton
+      .mockImplementation(async () => {
+        inFlight++
+        maxInFlight = Math.max(maxInFlight, inFlight)
+        await new Promise((resolve) => setTimeout(resolve, 1))
+        inFlight--
+        return JSON.stringify({ hook: 'H', body: 'B', visualPrompt: 'V' })
+      })
+
+    const result = await generateCampaignContent({ brand: brand(), durationDays: 1, piecesPerDay: 20 })
+
+    expect(result.pieces).toHaveLength(20)
+    expect(result.pieces.every((p) => !p.failed)).toBe(true)
+    expect(maxInFlight).toBeLessThanOrEqual(8)
+    expect(maxInFlight).toBeGreaterThan(1)
+  })
+
   it('throws when the skeleton has no valid pieces', async () => {
     generateText
       .mockResolvedValueOnce(JSON.stringify({ weeks: [{ week: 1, theme: 'Launch', goals: [] }] })) // roadmap
