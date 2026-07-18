@@ -40,6 +40,13 @@ export async function POST(req: NextRequest) {
       generateVideo: wantVideo,
     } = parsed.data
 
+    if (wantImage && wantVideo) {
+      return NextResponse.json(
+        { success: false, error: 'Choose either generateImage or generateVideo, not both.' },
+        { status: 400 }
+      )
+    }
+
     const brand = await getBrandById(brandId)
     if (!brand) {
       return NextResponse.json({ success: false, error: 'Brand not found' }, { status: 404 })
@@ -83,20 +90,26 @@ export async function POST(req: NextRequest) {
 
     const successful = finalResults.filter((r) => r.content)
     if (successful.length > 0) {
-      await prisma.generatedContent.createMany({
-        data: successful.map((r) => ({
-          brandId,
-          platform: r.platform,
-          contentType,
-          topic: topic || null,
-          content: r.content,
-          hook: r.hook,
-          tip: r.tip ?? null,
-          imageUrl: r.imageUrl ?? null,
-          videoUrl: r.videoUrl ?? null,
-          visualPrompt: visualPromptText ?? null,
-        })),
-      })
+      try {
+        await prisma.generatedContent.createMany({
+          data: successful.map((r) => ({
+            brandId,
+            platform: r.platform,
+            contentType,
+            topic: topic || null,
+            content: r.content,
+            hook: r.hook,
+            tip: r.tip ?? null,
+            imageUrl: r.imageUrl ?? null,
+            videoUrl: r.videoUrl ?? null,
+            visualPrompt: visualPromptText ?? null,
+          })),
+        })
+      } catch (persistError) {
+        // Don't let a persistence failure discard content that was already
+        // successfully (and, for media, expensively) generated.
+        console.error('Failed to persist generated content:', persistError)
+      }
     }
 
     return NextResponse.json({ success: true, data: finalResults })
