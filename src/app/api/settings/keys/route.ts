@@ -6,6 +6,7 @@ const schema = z.object({
   gemini: z.string().optional(),
   anthropic: z.string().optional(),
   openai: z.string().optional(),
+  runware: z.string().optional(),
   ollamaBaseUrl: z.string().optional(),
   defaultProvider: z.enum(['gemini', 'anthropic', 'openai', 'ollama']).optional(),
 })
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { gemini, anthropic, openai, ollamaBaseUrl, defaultProvider } = parsed.data
+    const { gemini, anthropic, openai, runware, ollamaBaseUrl, defaultProvider } = parsed.data
     const existing = loadKeys()
 
     // Empty string clears a key; undefined leaves the stored value untouched.
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
       gemini: gemini !== undefined ? gemini || undefined : existing.gemini,
       anthropic: anthropic !== undefined ? anthropic || undefined : existing.anthropic,
       openai: openai !== undefined ? openai || undefined : existing.openai,
+      runware: runware !== undefined ? runware || undefined : existing.runware,
       ollamaBaseUrl: ollamaBaseUrl !== undefined ? ollamaBaseUrl || undefined : existing.ollamaBaseUrl,
       defaultProvider: defaultProvider ?? existing.defaultProvider,
     })

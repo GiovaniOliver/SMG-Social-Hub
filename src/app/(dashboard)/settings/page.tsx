@@ -10,6 +10,7 @@ interface KeyStatus {
   gemini: boolean
   anthropic: boolean
   openai: boolean
+  runware: boolean
   ollamaBaseUrl: string
   defaultProvider: AIProvider
 }
@@ -164,16 +165,40 @@ export default function SettingsPage() {
           />
         </label>
 
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto self-start"
-        >
-          {saving && <Loader2 size={14} className="animate-spin" />}
-          {saved ? 'Saved' : saving ? 'Saving…' : 'Save settings'}
-        </button>
       </div>
+
+      <div className="card flex flex-col gap-4 mt-6">
+        <div>
+          <h2 className="text-sm font-semibold text-white">Media Generation</h2>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Runware powers image and video generation in Content Lab.
+          </p>
+        </div>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-xs text-slate-400">
+            Runware API key {status.runware && (
+              <span className="text-green-400">(configured — leave blank to keep)</span>
+            )}
+          </span>
+          <input
+            type="password"
+            value={keyInputs.runware ?? ''}
+            onChange={(e) => setKeyInputs((prev) => ({ ...prev, runware: e.target.value }))}
+            placeholder="rw_…"
+            className="w-full bg-slate-900 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </label>
+      </div>
+
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saving}
+        className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto self-start mt-6"
+      >
+        {saving && <Loader2 size={14} className="animate-spin" />}
+        {saved ? 'Saved' : saving ? 'Saving…' : 'Save settings'}
+      </button>
     </div>
   )
 }
