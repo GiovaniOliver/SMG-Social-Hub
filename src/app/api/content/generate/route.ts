@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { generateContent } from '@/lib/ai/content-generator'
+import { generateContent, type GeneratedPost } from '@/lib/ai/content-generator'
 import { CONTENT_TYPES } from '@/lib/ai/content-types'
 import type { ContentType } from '@/lib/ai/content-types'
 import { getBrandById } from '@/lib/brands'
+import { generateImage, generateVideo } from '@/lib/ai/media-providers'
+import { buildVisualPrompt } from '@/lib/ai/visual-prompt'
+import { prisma } from '@/lib/db'
 import type { Platform } from '@/types'
 import { PLATFORMS } from '@/types'
 
@@ -12,6 +15,8 @@ const schema = z.object({
   platforms: z.array(z.enum(PLATFORMS as [Platform, ...Platform[]])).min(1),
   contentType: z.enum(Object.keys(CONTENT_TYPES) as [ContentType, ...ContentType[]]),
   topic: z.string().max(500).optional().default(''),
+  generateImage: z.boolean().optional().default(false),
+  generateVideo: z.boolean().optional().default(false),
 })
 
 export async function POST(req: NextRequest) {
@@ -26,7 +31,14 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { brandId, platforms, contentType, topic } = parsed.data
+    const {
+      brandId,
+      platforms,
+      contentType,
+      topic,
+      generateImage: wantImage,
+      generateVideo: wantVideo,
+    } = parsed.data
 
     const brand = await getBrandById(brandId)
     if (!brand) {
@@ -34,10 +46,60 @@ export async function POST(req: NextRequest) {
     }
 
     const { voice, context } = brand
-
     const results = await generateContent(platforms, brand.name, voice, context, contentType, topic)
 
-    return NextResponse.json({ success: true, data: results })
+    let mediaUrl: string | undefined
+    let visualPromptText: string | undefined
+    let mediaWarning: string | undefined
+
+    if (wantImage || wantVideo) {
+      const firstOk = results.find((r) => r.content)
+      if (firstOk) {
+        try {
+          visualPromptText = await buildVisualPrompt({
+            mediaType: wantVideo ? 'video' : 'image',
+            brandName: brand.name,
+            brandVoice: voice,
+            brandContext: context,
+            postContent: firstOk.content,
+            postHook: firstOk.hook,
+          })
+          const media = wantVideo ? await generateVideo(visualPromptText) : await generateImage(visualPromptText)
+          mediaUrl = media.url
+        } catch (err) {
+          mediaWarning = err instanceof Error ? err.message : 'Media generation failed'
+        }
+      }
+    }
+
+    const withMedia: GeneratedPost[] = results.map((r) => {
+      if (!r.content || !mediaUrl) return r
+      return wantVideo ? { ...r, videoUrl: mediaUrl } : { ...r, imageUrl: mediaUrl }
+    })
+
+    const finalResults: GeneratedPost[] = mediaWarning
+      ? withMedia.map((r) => (r.content ? { ...r, mediaWarning } : r))
+      : withMedia
+
+    const successful = finalResults.filter((r) => r.content)
+    if (successful.length > 0) {
+      await prisma.generatedContent.createMany({
+        data: successful.map((r) => ({
+          brandId,
+          platform: r.platform,
+          contentType,
+          topic: topic || null,
+          content: r.content,
+          hook: r.hook,
+          tip: r.tip ?? null,
+          imageUrl: r.imageUrl ?? null,
+          videoUrl: r.videoUrl ?? null,
+          visualPrompt: visualPromptText ?? null,
+        })),
+      })
+    }
+
+    return NextResponse.json({ success: true, data: finalResults })
   } catch (error) {
     console.error('Content generation error:', error)
     return NextResponse.json(

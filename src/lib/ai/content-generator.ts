@@ -88,6 +88,9 @@ export interface GeneratedPost {
   tip?: string
   characterCount: number
   characterLimit: number
+  imageUrl?: string
+  videoUrl?: string
+  mediaWarning?: string
 }
 
 function parseResponse(raw: string): { content: string; hook: string; tip?: string } {
