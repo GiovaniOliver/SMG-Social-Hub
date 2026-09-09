@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { createOAuthState } from '@/lib/security/oauth-state'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
 
   const scopes = ['openid', 'profile', 'email', 'w_member_social'].join(' ')
 
-  const state = Buffer.from(JSON.stringify({ brandId, ts: Date.now() })).toString('base64url')
+  const state = await createOAuthState(brandId, 'linkedin')
 
   const params = new URLSearchParams({
     response_type: 'code',
