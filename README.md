@@ -2,6 +2,33 @@
 
 Multi-brand social media management: schedule posts + AI-assisted comment engagement.
 
+## Database architecture
+
+SMG Social Hub does **not** have a separate database server. It uses the same Supabase/Postgres project as the main Socialtize Marketing Group website.
+
+- **Database host:** Supabase Postgres (`SMG Agency Website` project)
+- **ORM / query layer:** Prisma
+- **Isolation boundary:** Social Hub owns only tables prefixed with `social_hub_`
+- **Public Data API:** disabled at the table-permission level for Social Hub tables (`anon` and `authenticated` have no table privileges)
+- **RLS:** enabled on every `social_hub_*` table as defense in depth
+
+Prisma is the application ORM and schema definition layer; Supabase/Postgres is the actual database.
+
+Current Social Hub tables:
+
+- `social_hub_brands`
+- `social_hub_platform_connections`
+- `social_hub_scheduled_posts`
+- `social_hub_comment_opportunities`
+- `social_hub_comment_drafts`
+- `social_hub_campaigns`
+- `social_hub_content_pieces`
+- `social_hub_generated_content`
+
+The Social Hub database was reset to a clean baseline on September 9, 2026. The source baseline is `prisma/migrations/20260909_initial_social_hub/migration.sql`.
+
+> Never reset or drop the entire Supabase project. Database resets for this app must be scoped only to `social_hub_*` tables because the project is shared with SocialtizeMG.com.
+
 ## Setup
 
 1. Copy `.env.example` to `.env.local` and fill in your credentials.
@@ -9,8 +36,8 @@ Multi-brand social media management: schedule posts + AI-assisted comment engage
    - `DATABASE_URL`: Supavisor transaction-pooler URL for app/serverless runtime traffic.
    - `DIRECT_URL`: direct Postgres URL for Prisma migrations and introspection.
 3. `npm install`
-4. `npx prisma db push`
-5. `npx prisma generate`
+4. `npx prisma generate`
+5. For local schema iteration, use `npm run db:push` only against the intended Social Hub database/project.
 6. `npm run dev`
 
 > Never commit `.env`, `.env.local`, database passwords, OAuth secrets, or API keys. Vercel production secrets belong in Project Settings → Environment Variables.
@@ -57,13 +84,13 @@ For production on Vercel, make sure both variables target **Production**. Previe
 
 ## Seed initial data
 
-```
+```text
 POST http://localhost:3000/api/seed
 ```
 
 ## Pre-load SnapRegister comment opportunities
 
-```
+```text
 POST http://localhost:3000/api/comments/pre-load
 Body: { "brandId": "<brand-id>" }
 ```
@@ -86,17 +113,13 @@ Powered by `claude-haiku-4-5-20251001` (fast and cost-efficient).
 
 ### How it works
 
-1. Navigate to Comments > click any opportunity
-2. Click "Generate Reply" on the detail page
-3. The system:
-   - Loads the brand voice and context from the database
-   - Sends the comment, post content, and brand context to Claude
-   - Runs a risk assessment on keywords in the comment and draft
-   - Saves the draft to the database
-4. You review and edit the reply in the textarea
-5. Click "Approve Reply"
-6. For owned channels: click "Post Reply" to publish
-7. For external channels: click "Copy to Clipboard", paste it manually
+1. Navigate to Comments > click any opportunity.
+2. Click **Generate Reply** on the detail page.
+3. The system loads brand voice/context, sends the relevant discussion context to Claude, runs risk checks, and saves the draft.
+4. Review and edit the reply.
+5. Click **Approve Reply**.
+6. For owned channels, click **Post Reply**.
+7. For external channels, copy the approved reply and post manually.
 
 ### Risk Levels
 
@@ -104,17 +127,10 @@ Powered by `claude-haiku-4-5-20251001` (fast and cost-efficient).
 - **MEDIUM**: Contains sensitive product/complaint language — review carefully
 - **HIGH**: Contains legal threat, refund demand, or fraud accusation — always escalate to human, do not post AI draft as-is
 
-## Comment Engagement Rules (SnapRegister)
-
-- Start with the problem they're having
-- Give a 2-4 step answer
-- Never drop product link in first comment
-- Only mention SnapRegister if asked about organization tools
-- Flag and escalate any legal or refund-related comments
-
 ## Brand Voice & Context
 
 Each brand has:
+
 - **Voice**: tone, personality, list of things to avoid, optional CTA hint
 - **Context**: products/services, target audience, key messages, FAQs
 
@@ -122,7 +138,7 @@ Edit these at `/brands` in the dashboard. The AI system prompt is built from thi
 
 ## Architecture
 
-```
+```text
 src/
   app/
     (dashboard)/
@@ -147,8 +163,4 @@ src/
       risk-filter.ts      # Keyword-based risk assessment
     brands.ts             # Brand parsing utilities
     db.ts                 # Prisma client singleton
-  components/
-    platform-badge.tsx    # Colored platform pill
-    copy-to-clipboard.tsx # Clipboard button with feedback
-    risk-badge.tsx        # LOW/MEDIUM/HIGH risk indicator
 ```

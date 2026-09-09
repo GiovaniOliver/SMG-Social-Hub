@@ -9,28 +9,27 @@ datasource db {
 }
 
 model Brand {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  description String?
-  logoUrl     String?
-  voice       String   @default("{}")  // JSON: { tone, personality, avoid, cta }
-  context     String   @default("{}")  // JSON: { products, faqs, targetAudience, keyMessages }
-  // --- Content Engine fields (ported from BrandFlow) ---
-  niche          String?
-  audience       String?
-  tone           String?
-  goals          String?  // JSON string array
-  website        String?
-  websiteContent String?
-  appStoreUrl    String?  // NEW
-  socialUrls     String?  // NEW — JSON: { FACEBOOK?, INSTAGRAM?, TWITTER?, LINKEDIN?, TIKTOK?, YOUTUBE?, REDDIT? }
-  localFolderPath String? // NEW — last-scanned local folder path, convenience only
-  brandKit       String?  // JSON string
-  engineSettings String?  // JSON string (BrandFlow per-brand settings)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  slug            String   @unique
+  description     String?
+  logoUrl         String?
+  voice           String   @default("{}") // JSON: { tone, personality, avoid, cta }
+  context         String   @default("{}") // JSON: { products, faqs, targetAudience, keyMessages }
+  niche           String?
+  audience        String?
+  tone            String?
+  goals           String? // JSON string array
+  website         String?
+  websiteContent  String?
+  appStoreUrl     String?
+  socialUrls      String? // JSON: { FACEBOOK?, INSTAGRAM?, TWITTER?, LINKEDIN?, TIKTOK?, YOUTUBE?, REDDIT? }
+  localFolderPath String?
+  brandKit        String? // JSON string
+  engineSettings  String? // JSON string (BrandFlow per-brand settings)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
 
   connections          PlatformConnection[]
   scheduledPosts       ScheduledPost[]
@@ -45,38 +44,40 @@ model PlatformConnection {
   id           String    @id @default(cuid())
   brandId      String
   brand        Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  platform     String    // FACEBOOK | INSTAGRAM | TWITTER | LINKEDIN | TIKTOK | YOUTUBE | REDDIT
+  platform     String // FACEBOOK | INSTAGRAM | TWITTER | LINKEDIN | TIKTOK | YOUTUBE | REDDIT
   accountId    String?
   accountLabel String?
-  accessToken  String    // AES-256 encrypted
-  refreshToken String?   // AES-256 encrypted
-  expiresAt    DateTime?
+  accessToken  String // AES-256 encrypted
+  refreshToken String? // AES-256 encrypted
+  expiresAt    DateTime? @db.Timestamptz(6)
   scopes       String    @default("[]") // JSON string array
   isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(6)
 
   @@unique([brandId, platform])
   @@map("social_hub_platform_connections")
 }
 
 model ScheduledPost {
-  id          String    @id @default(cuid())
-  brandId     String
-  brand       Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  platforms   String    // JSON: ["FACEBOOK","INSTAGRAM"]
-  content     String
-  mediaUrls   String    @default("[]") // JSON string array of public URLs
-  scheduledAt DateTime
-  status      String    @default("PENDING") // PENDING | PUBLISHING | PUBLISHED | FAILED | CANCELLED
-  publishedAt DateTime?
-  error       String?
-  results     String    @default("{}") // JSON: { FACEBOOK: { success, postId, postUrl } }
-  notes       String?
+  id           String    @id @default(cuid())
+  brandId      String
+  brand        Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  platforms    String // JSON: ["FACEBOOK","INSTAGRAM"]
+  content      String
+  mediaUrls    String    @default("[]") // JSON string array of public URLs
+  scheduledAt  DateTime  @db.Timestamptz(6)
+  status       String    @default("PENDING") // PENDING | PUBLISHING | PUBLISHED | FAILED | CANCELLED
+  publishedAt  DateTime? @db.Timestamptz(6)
+  error        String?
+  results      String    @default("{}") // JSON: { FACEBOOK: { success, postId, postUrl } }
+  notes        String?
   contentPiece ContentPiece?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(6)
 
+  @@index([brandId])
+  @@index([status, scheduledAt])
   @@map("social_hub_scheduled_posts")
 }
 
@@ -85,7 +86,7 @@ model CommentOpportunity {
   dedupeKey     String    @unique
   brandId       String
   brand         Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  platform      String    // FACEBOOK | INSTAGRAM | TWITTER | LINKEDIN | TIKTOK | YOUTUBE | REDDIT
+  platform      String // FACEBOOK | INSTAGRAM | TWITTER | LINKEDIN | TIKTOK | YOUTUBE | REDDIT
   postUrl       String
   postTitle     String?
   postContent   String?
@@ -93,16 +94,17 @@ model CommentOpportunity {
   commentText   String?
   authorName    String?
   authorHandle  String?
-  isOwned       Boolean   @default(false) // true = on our own page/account
-  relevanceNote String?   // why this is relevant to the brand
+  isOwned       Boolean   @default(false)
+  relevanceNote String?
   status        String    @default("PENDING") // PENDING | DRAFT_READY | APPROVED | POSTED | SKIPPED
   approvedReply String?
-  postedAt      DateTime?
-  discoveredAt  DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  postedAt      DateTime? @db.Timestamptz(6)
+  discoveredAt  DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(6)
 
-  drafts        CommentDraft[]
+  drafts CommentDraft[]
 
+  @@index([brandId, status, discoveredAt])
   @@map("social_hub_comment_opportunities")
 }
 
@@ -112,24 +114,26 @@ model CommentDraft {
   opportunity   CommentOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
   content       String
   isApproved    Boolean            @default(false)
-  createdAt     DateTime           @default(now())
+  createdAt     DateTime           @default(now()) @db.Timestamptz(6)
 
+  @@index([opportunityId])
   @@map("social_hub_comment_drafts")
 }
 
 model Campaign {
-  id          String         @id @default(cuid())
+  id          String   @id @default(cuid())
   brandId     String
-  brand       Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
   name        String
   description String?
-  status      String         @default("draft") // draft | generating | completed
+  status      String   @default("draft") // draft | generating | completed
   analysis    String
-  trends      String?        // JSON string
-  metadata    String?        // JSON string
-  createdAt   DateTime       @default(now())
+  trends      String? // JSON string
+  metadata    String? // JSON string
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
   content     ContentPiece[]
 
+  @@index([brandId, createdAt])
   @@map("social_hub_campaigns")
 }
 
@@ -150,14 +154,15 @@ model ContentPiece {
   mediaType         String?
   audioUrl          String?
   scheduledAt       String?
-  keywords          String?        // JSON string
+  keywords          String? // JSON string
   performanceScore  Int?
   script            String?
   referenceImageUrl String?
-  metadata          String?        // JSON string
+  metadata          String? // JSON string
   scheduledPostId   String?        @unique
   scheduledPost     ScheduledPost? @relation(fields: [scheduledPostId], references: [id])
 
+  @@index([campaignId])
   @@map("social_hub_content_pieces")
 }
 
@@ -174,7 +179,8 @@ model GeneratedContent {
   imageUrl     String?
   videoUrl     String?
   visualPrompt String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
 
+  @@index([brandId, createdAt])
   @@map("social_hub_generated_content")
 }
