@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { decrypt } from '@/lib/crypto'
 import type { ApiResponse } from '@/types'
@@ -7,10 +6,6 @@ import type { ApiResponse } from '@/types'
 const GRAPH_API_VERSION = 'v19.0'
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`
 const ARCADE_API_BASE = 'https://api.arcade.dev/v1'
-
-const PostBodySchema = z.object({
-  replyText: z.string().min(1, 'Reply text is required'),
-})
 
 async function getConnectionToken(
   brandId: string,
@@ -290,21 +285,12 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
+  void request
   const { id } = await params
+
   try {
-    const body: unknown = await request.json()
-    const parsed = PostBodySchema.safeParse(body)
-
-    if (!parsed.success) {
-      const response: ApiResponse<never> = {
-        success: false,
-        error: parsed.error.issues.map((i) => i.message).join(', '),
-      }
-      return NextResponse.json(response, { status: 400 })
-    }
-
     const opportunity = await prisma.commentOpportunity.findUnique({
-      where: { id: id },
+      where: { id },
     })
 
     if (!opportunity) {
@@ -312,16 +298,40 @@ export async function POST(
       return NextResponse.json(response, { status: 404 })
     }
 
-    const { replyText } = parsed.data
+    if (opportunity.status === 'POSTED') {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: 'This reply has already been posted',
+      }
+      return NextResponse.json(response, { status: 409 })
+    }
+
+    if (opportunity.status !== 'APPROVED') {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: 'Reply must be approved before posting',
+      }
+      return NextResponse.json(response, { status: 409 })
+    }
+
+    const replyText = opportunity.approvedReply?.trim()
+    if (!replyText) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: 'Approved reply is missing',
+      }
+      return NextResponse.json(response, { status: 409 })
+    }
+
     const { platform, brandId, isOwned, commentId, postUrl } = opportunity
 
-    // External (not owned) channels cannot be auto-posted — mark as manually posted
+    // External (not owned) channels cannot be auto-posted — mark the already
+    // approved reply as manually posted. The client can copy approvedReply.
     if (!isOwned) {
       const updated = await prisma.commentOpportunity.update({
-        where: { id: id },
+        where: { id },
         data: {
           status: 'POSTED',
-          approvedReply: replyText,
           postedAt: new Date(),
         },
       })
@@ -379,10 +389,9 @@ export async function POST(
     }
 
     const updated = await prisma.commentOpportunity.update({
-      where: { id: id },
+      where: { id },
       data: {
         status: 'POSTED',
-        approvedReply: replyText,
         postedAt: new Date(),
       },
     })
