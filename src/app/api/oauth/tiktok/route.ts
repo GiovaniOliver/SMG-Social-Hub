@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { randomBytes } from 'crypto'
+import { createOAuthState } from '@/lib/security/oauth-state'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -25,10 +25,7 @@ export async function GET(request: NextRequest) {
     'video.upload',
   ].join(',')
 
-  const codeVerifier = randomBytes(32).toString('base64url')
-  const state = Buffer.from(
-    JSON.stringify({ brandId, codeVerifier, ts: Date.now() })
-  ).toString('base64url')
+  const state = await createOAuthState(brandId, 'tiktok')
 
   const params = new URLSearchParams({
     client_key: clientKey,

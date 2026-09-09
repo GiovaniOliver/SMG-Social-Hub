@@ -17,6 +17,8 @@ export interface ProcessedPostResult {
   error?: string
 }
 
+const STALE_PUBLISHING_AFTER_MS = 15 * 60 * 1000
+
 function parsePlatforms(raw: string): string[] {
   try {
     const parsed = JSON.parse(raw)
@@ -37,6 +39,19 @@ function parseMediaUrls(raw: string): string[] {
 
 export async function processScheduledPosts(): Promise<ProcessedPostResult[]> {
   const now = new Date()
+  const staleBefore = new Date(now.getTime() - STALE_PUBLISHING_AFTER_MS)
+
+  // Recover posts that were claimed by an invocation that died before finishing.
+  await prisma.scheduledPost.updateMany({
+    where: {
+      status: 'PUBLISHING',
+      updatedAt: { lt: staleBefore },
+    },
+    data: {
+      status: 'PENDING',
+      error: 'Recovered stale publishing claim; retrying',
+    },
+  })
 
   const pendingPosts = await prisma.scheduledPost.findMany({
     where: {
@@ -49,10 +64,14 @@ export async function processScheduledPosts(): Promise<ProcessedPostResult[]> {
   const results: ProcessedPostResult[] = []
 
   for (const post of pendingPosts) {
-    await prisma.scheduledPost.update({
-      where: { id: post.id },
-      data: { status: 'PUBLISHING' },
+    // Atomically claim this post. Concurrent scheduler invocations can both see
+    // the row in findMany(), but only one can transition it from PENDING.
+    const claim = await prisma.scheduledPost.updateMany({
+      where: { id: post.id, status: 'PENDING' },
+      data: { status: 'PUBLISHING', error: null },
     })
+
+    if (claim.count !== 1) continue
 
     const platforms = parsePlatforms(post.platforms)
     const mediaUrls = parseMediaUrls(post.mediaUrls)
