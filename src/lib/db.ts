@@ -326,6 +326,12 @@ function modelAdapter(model: ModelName) {
       return this.findFirst(args)
     },
 
+    async findUniqueOrThrow(args: QueryArgs): Promise<Row> {
+      const row = await this.findUnique(args)
+      if (!row) throw new Error(`[database:${model}.findUniqueOrThrow] Record not found`)
+      return row
+    },
+
     async create(args: QueryArgs): Promise<Row> {
       const payload = cleanData(model, args?.data || {})
       const { data, error } = await getSupabaseAdmin()
