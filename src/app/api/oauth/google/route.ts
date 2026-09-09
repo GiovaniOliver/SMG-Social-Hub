@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { createOAuthState } from '@/lib/security/oauth-state'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -25,7 +26,7 @@ export async function GET(request: NextRequest) {
     'https://www.googleapis.com/auth/userinfo.email',
   ].join(' ')
 
-  const state = Buffer.from(JSON.stringify({ brandId, ts: Date.now() })).toString('base64url')
+  const state = await createOAuthState(brandId, 'google')
 
   const params = new URLSearchParams({
     client_id: clientId,
