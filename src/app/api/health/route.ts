@@ -7,14 +7,86 @@ const HEALTH_HEADERS = {
   'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
 }
 
+const EXPECTED_SUPABASE_PROJECT_REF = 'kicfnilhwenaditbgcxh'
+
 type DatabaseFailureReason =
   | 'AUTHENTICATION_FAILED'
+  | 'POOLER_USERNAME_INVALID'
   | 'TENANT_OR_USER_INVALID'
   | 'UNREACHABLE'
   | 'POOLER_MODE_MISMATCH'
   | 'TLS_ERROR'
   | 'CONFIGURATION_INVALID'
   | 'UNKNOWN'
+
+type SafeDatabaseConfig = {
+  present: boolean
+  provider: 'supabase-pooler' | 'supabase-direct' | 'other' | 'invalid'
+  port: string | null
+  usernameFormat: 'tenant-qualified' | 'plain-postgres' | 'other' | 'missing'
+  projectRefMatch: boolean | null
+  transactionPort: boolean | null
+  pgbouncerParam: boolean
+  connectionLimitOne: boolean
+}
+
+function inspectDatabaseConfig(): SafeDatabaseConfig {
+  const raw = process.env.DATABASE_URL
+  if (!raw) {
+    return {
+      present: false,
+      provider: 'invalid',
+      port: null,
+      usernameFormat: 'missing',
+      projectRefMatch: null,
+      transactionPort: null,
+      pgbouncerParam: false,
+      connectionLimitOne: false,
+    }
+  }
+
+  try {
+    const url = new URL(raw)
+    const hostname = url.hostname.toLowerCase()
+    const username = decodeURIComponent(url.username)
+    const isPooler = hostname.endsWith('.pooler.supabase.com')
+    const isDirect = hostname === `db.${EXPECTED_SUPABASE_PROJECT_REF}.supabase.co`
+    const usernameFormat = username.startsWith('postgres.')
+      ? 'tenant-qualified'
+      : username === 'postgres'
+        ? 'plain-postgres'
+        : username
+          ? 'other'
+          : 'missing'
+
+    const projectRefMatch =
+      usernameFormat === 'tenant-qualified'
+        ? username === `postgres.${EXPECTED_SUPABASE_PROJECT_REF}`
+        : null
+
+    return {
+      present: true,
+      provider: isPooler ? 'supabase-pooler' : isDirect ? 'supabase-direct' : 'other',
+      port: url.port || null,
+      usernameFormat,
+      projectRefMatch,
+      transactionPort: isPooler ? url.port === '6543' : null,
+      pgbouncerParam: url.searchParams.get('pgbouncer') === 'true',
+      connectionLimitOne: url.searchParams.get('connection_limit') === '1',
+    }
+  } catch {
+    return {
+      present: true,
+      provider: 'invalid',
+      port: null,
+      usernameFormat: 'missing',
+      projectRefMatch: null,
+      transactionPort: null,
+      pgbouncerParam: false,
+      connectionLimitOne: false,
+    }
+  }
+}
 
 function classifyDatabaseError(error: unknown): DatabaseFailureReason {
   const message = error instanceof Error ? error.message : String(error)
@@ -42,10 +114,20 @@ export async function GET(): Promise<NextResponse> {
       { status: 200, headers: HEALTH_HEADERS }
     )
   } catch (error) {
-    // Expose only a coarse failure category. Never return the database URL,
-    // hostname, username, password, or raw Prisma/driver error message.
-    const reason = classifyDatabaseError(error)
-    console.error(`[health] database check failed: ${reason}`)
+    const config = inspectDatabaseConfig()
+    let reason = classifyDatabaseError(error)
+
+    if (reason === 'AUTHENTICATION_FAILED' && config.provider === 'supabase-pooler') {
+      if (config.usernameFormat === 'plain-postgres') {
+        reason = 'POOLER_USERNAME_INVALID'
+      } else if (config.usernameFormat === 'tenant-qualified' && config.projectRefMatch === false) {
+        reason = 'TENANT_OR_USER_INVALID'
+      }
+    }
+
+    // Safe operational diagnostics only. Never log the database URL, hostname,
+    // full username, password, or raw Prisma/driver error message.
+    console.error(`[health] database check failed: ${reason}; config=${JSON.stringify(config)}`)
 
     return NextResponse.json(
       { status: 'degraded', database: 'unavailable', reason },
