@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
@@ -79,6 +80,21 @@ const SNAPREGISTER_OPPORTUNITIES: PreloadEntry[] = [
   },
 ]
 
+function buildDedupeKey(brandId: string, postUrl: string): string {
+  return createHash('sha256')
+    .update(`${brandId}\u0000${postUrl}\u0000post-level`)
+    .digest('hex')
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === 'P2002'
+  )
+}
+
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body: unknown = await request.json()
@@ -108,8 +124,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     let skipped = 0
 
     for (const entry of SNAPREGISTER_OPPORTUNITIES) {
-      const existing = await prisma.commentOpportunity.findFirst({
-        where: { brandId, postUrl: entry.postUrl },
+      const dedupeKey = buildDedupeKey(brandId, entry.postUrl)
+      const existing = await prisma.commentOpportunity.findUnique({
+        where: { dedupeKey },
       })
 
       if (existing) {
@@ -117,19 +134,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         continue
       }
 
-      await prisma.commentOpportunity.create({
-        data: {
-          brandId,
-          platform: 'FACEBOOK',
-          postUrl: entry.postUrl,
-          postTitle: entry.postTitle,
-          isOwned: false,
-          relevanceNote: entry.relevanceNote,
-          status: 'PENDING',
-        },
-      })
-
-      created++
+      try {
+        await prisma.commentOpportunity.create({
+          data: {
+            dedupeKey,
+            brandId,
+            platform: 'FACEBOOK',
+            postUrl: entry.postUrl,
+            postTitle: entry.postTitle,
+            isOwned: false,
+            relevanceNote: entry.relevanceNote,
+            status: 'PENDING',
+          },
+        })
+        created++
+      } catch (error) {
+        // An overlapping preload can win the unique-key race after findUnique.
+        // Treat that as an already-loaded item rather than failing the request.
+        if (isUniqueConstraintError(error)) {
+          skipped++
+          continue
+        }
+        throw error
+      }
     }
 
     const response: ApiResponse<{ created: number; skipped: number; total: number }> = {
