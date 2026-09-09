@@ -4,10 +4,11 @@ import { verifyOAuthState, type OAuthProvider } from '@/lib/security/oauth-state
 
 // Paths reachable without a session. Everything else requires the operator login.
 // - /login + /api/auth/login: the login surface itself.
+// - /api/health: exposes only coarse service/database status (no data or errors).
 // - /api/cron: authenticates itself with CRON_SECRET (called by an external
 //   scheduler that has no session cookie), so it's excluded here and guarded
 //   inside the route handler.
-const PUBLIC_PATHS = new Set(['/login', '/api/auth/login', '/api/cron'])
+const PUBLIC_PATHS = new Set(['/login', '/api/auth/login', '/api/health', '/api/cron'])
 
 const OAUTH_CALLBACKS = new Map<string, OAuthProvider>([
   ['/api/oauth/facebook/callback', 'facebook'],
