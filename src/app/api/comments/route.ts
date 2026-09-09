@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
@@ -16,6 +17,21 @@ const CreateBodySchema = z.object({
   relevanceNote: z.string().optional(),
   isOwned: z.boolean().optional(),
 })
+
+function buildPostLevelDedupeKey(brandId: string, postUrl: string): string {
+  return createHash('sha256')
+    .update(`${brandId}\u0000${postUrl}\u0000post-level`)
+    .digest('hex')
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === 'P2002'
+  )
+}
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -91,6 +107,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const opportunity = await prisma.commentOpportunity.create({
       data: {
+        dedupeKey: buildPostLevelDedupeKey(brandId, postUrl),
         brandId,
         platform: platform.toUpperCase(),
         postUrl,
@@ -110,6 +127,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
     return NextResponse.json(response, { status: 201 })
   } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: 'This comment opportunity already exists',
+      }
+      return NextResponse.json(response, { status: 409 })
+    }
+
     const response: ApiResponse<never> = {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to create opportunity',
