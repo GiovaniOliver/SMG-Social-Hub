@@ -48,12 +48,18 @@ function parseVoice(raw: unknown): BrandVoice {
   }
 }
 
+function isFaq(value: unknown): value is { q: string; a: string } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const faq = value as Record<string, unknown>
+  return typeof faq.q === 'string' && typeof faq.a === 'string'
+}
+
 function parseContext(raw: unknown): BrandContext {
   if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
     const parsed = raw as Record<string, unknown>
     return {
       products: Array.isArray(parsed.products) ? parsed.products.filter((value): value is string => typeof value === 'string') : [],
-      faqs: Array.isArray(parsed.faqs) ? parsed.faqs.filter((value): value is string => typeof value === 'string') : [],
+      faqs: Array.isArray(parsed.faqs) ? parsed.faqs.filter(isFaq) : [],
       targetAudience: Array.isArray(parsed.targetAudience) ? parsed.targetAudience.filter((value): value is string => typeof value === 'string') : [],
       keyMessages: Array.isArray(parsed.keyMessages) ? parsed.keyMessages.filter((value): value is string => typeof value === 'string') : [],
     }
