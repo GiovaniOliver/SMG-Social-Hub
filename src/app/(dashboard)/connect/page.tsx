@@ -6,13 +6,20 @@ import type { Platform } from '@/types'
 import { ConnectPlatformCard } from './connect-platform-card'
 import { SeedBrandButton } from './seed-brand-button'
 
-async function getConnections(brandId?: string) {
+type ConnectionRow = {
+  id: string
+  platform: string
+  accountLabel?: string | null
+  expiresAt?: string | Date | null
+}
+
+async function getConnections(brandId?: string): Promise<ConnectionRow[]> {
   if (!brandId) {
-    return prisma.platformConnection.findMany({ where: { isActive: true } })
+    return prisma.platformConnection.findMany({ where: { isActive: true } }) as Promise<ConnectionRow[]>
   }
   return prisma.platformConnection.findMany({
     where: { brandId, isActive: true },
-  })
+  }) as Promise<ConnectionRow[]>
 }
 
 async function getFirstBrand() {
@@ -32,7 +39,7 @@ export default async function ConnectPage({
   const connections = brand ? await getConnections(brand.id) : []
 
   const connectionMap = new Map(
-    connections.map((c) => [c.platform as Platform, c])
+    connections.map((connection) => [connection.platform as Platform, connection])
   )
 
   return (
@@ -79,8 +86,12 @@ export default async function ConnectPage({
                   connection
                     ? {
                         id: connection.id,
-                        accountLabel: connection.accountLabel,
-                        expiresAt: connection.expiresAt?.toISOString() ?? null,
+                        accountLabel: connection.accountLabel ?? null,
+                        expiresAt: connection.expiresAt
+                          ? connection.expiresAt instanceof Date
+                            ? connection.expiresAt.toISOString()
+                            : connection.expiresAt
+                          : null,
                       }
                     : null
                 }
