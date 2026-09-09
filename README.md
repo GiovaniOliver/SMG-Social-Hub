@@ -4,19 +4,25 @@ Multi-brand social media management: schedule posts + AI-assisted comment engage
 
 ## Setup
 
-1. Copy `.env.example` to `.env.local` and fill in your credentials
-2. `npm install`
-3. `npx prisma db push`
-4. `npx prisma generate`
-5. `npm run dev`
+1. Copy `.env.example` to `.env.local` and fill in your credentials.
+2. Configure Supabase Postgres connection strings:
+   - `DATABASE_URL`: Supavisor transaction-pooler URL for app/serverless runtime traffic.
+   - `DIRECT_URL`: direct Postgres URL for Prisma migrations and introspection.
+3. `npm install`
+4. `npx prisma db push`
+5. `npx prisma generate`
+6. `npm run dev`
+
+> Never commit `.env`, `.env.local`, database passwords, OAuth secrets, or API keys. Vercel production secrets belong in Project Settings → Environment Variables.
 
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | Yes | SQLite path, e.g. `file:./dev.db` |
+| `DATABASE_URL` | Yes | Supabase Postgres runtime connection. For Vercel/serverless use the Supavisor transaction pooler (typically port `6543`) with Prisma pooler parameters such as `pgbouncer=true&connection_limit=1`. |
+| `DIRECT_URL` | Yes | Direct Supabase Postgres connection (typically `db.<project-ref>.supabase.co:5432`) used by Prisma for migrations/introspection. |
 | `ANTHROPIC_API_KEY` | Yes | Anthropic API key for AI reply generation |
-| `TOKEN_ENCRYPTION_KEY` | Yes | 32-char hex string for AES-256 token encryption |
+| `TOKEN_ENCRYPTION_KEY` | Yes | Secret used for AES-256 token encryption |
 | `AUTH_SECRET` | Yes | Random 32+ byte secret used to sign the operator session cookie |
 | `APP_PASSWORD` | Yes | The single shared operator login password |
 | `CRON_SECRET` | Yes | Shared secret required to call `POST /api/cron` (external scheduler) |
@@ -37,6 +43,17 @@ Multi-brand social media management: schedule posts + AI-assisted comment engage
 | `ARCADE_API_KEY` | Optional | Arcade API key for Twitter/Reddit posting |
 | `ARCADE_USER_ID` | Optional | Arcade user ID |
 | `NEXT_PUBLIC_BASE_URL` | Optional | Public base URL for OAuth callbacks |
+
+### Supabase connection format
+
+Use placeholders locally and retrieve the actual values from the Supabase project's **Connect** panel. Do not paste real credentials into source control.
+
+```text
+DATABASE_URL=postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
+DIRECT_URL=postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres
+```
+
+For production on Vercel, make sure both variables target **Production**. Preview values should be configured separately if preview deployments need database access.
 
 ## Seed initial data
 
