@@ -4,15 +4,13 @@ Multi-brand social media management: schedule posts + AI-assisted comment engage
 
 ## Database architecture
 
-SMG Social Hub does **not** have a separate database server. It uses the same Supabase/Postgres project as the main Socialtize Marketing Group website.
+SMG Social Hub uses the same Supabase project as the main Socialtize Marketing Group website.
 
-- **Database host:** Supabase Postgres (`SMG Agency Website` project)
-- **ORM / query layer:** Prisma
+- **Database:** Supabase (`SMG Agency Website` project)
+- **Application query layer:** `@supabase/supabase-js`, server-side only
 - **Isolation boundary:** Social Hub owns only tables prefixed with `social_hub_`
-- **Public Data API:** disabled at the table-permission level for Social Hub tables (`anon` and `authenticated` have no table privileges)
-- **RLS:** enabled on every `social_hub_*` table as defense in depth
-
-Prisma is the application ORM and schema definition layer; Supabase/Postgres is the actual database.
+- **RLS:** enabled on every `social_hub_*` table
+- **Server access:** a Supabase server secret/service-role credential is required because `anon` and `authenticated` do not have direct table privileges
 
 Current Social Hub tables:
 
@@ -25,62 +23,67 @@ Current Social Hub tables:
 - `social_hub_content_pieces`
 - `social_hub_generated_content`
 
-The Social Hub database was reset to a clean baseline on September 9, 2026. The source baseline is `prisma/migrations/20260909_initial_social_hub/migration.sql`.
-
-> Never reset or drop the entire Supabase project. Database resets for this app must be scoped only to `social_hub_*` tables because the project is shared with SocialtizeMG.com.
+> Never reset or drop the entire Supabase project. Database changes for this app must remain scoped to `social_hub_*` tables because the project is shared with SocialtizeMG.com.
 
 ## Setup
 
-1. Copy `.env.example` to `.env.local` and fill in your credentials.
-2. Configure Supabase Postgres connection strings:
-   - `DATABASE_URL`: Supavisor transaction-pooler URL for app/serverless runtime traffic.
-   - `DIRECT_URL`: direct Postgres URL for Prisma migrations and introspection.
-3. `npm install`
-4. `npx prisma generate`
-5. For local schema iteration, use `npm run db:push` only against the intended Social Hub database/project.
-6. `npm run dev`
+1. Copy `.env.example` to `.env.local`.
+2. Set `SUPABASE_URL` to the SMG Supabase project URL.
+3. Set `SUPABASE_SECRET_KEY` to a server-only Supabase secret key. The legacy `SUPABASE_SERVICE_ROLE_KEY` name is also accepted as a fallback.
+4. Add the remaining authentication, encryption, AI, and OAuth variables you need.
+5. Run `npm install`.
+6. Run `npm run dev`.
 
-> Never commit `.env`, `.env.local`, database passwords, OAuth secrets, or API keys. Vercel production secrets belong in Project Settings → Environment Variables.
+> Never commit `.env`, `.env.local`, database credentials, OAuth secrets, or API keys. Vercel production secrets belong in Project Settings → Environment Variables.
 
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `DATABASE_URL` | Yes | Supabase Postgres runtime connection. For Vercel/serverless use the Supavisor transaction pooler (typically port `6543`) with Prisma pooler parameters such as `pgbouncer=true&connection_limit=1`. |
-| `DIRECT_URL` | Yes | Direct Supabase Postgres connection (typically `db.<project-ref>.supabase.co:5432`) used by Prisma for migrations/introspection. |
-| `ANTHROPIC_API_KEY` | Yes | Anthropic API key for AI reply generation |
-| `TOKEN_ENCRYPTION_KEY` | Yes | Secret used for AES-256 token encryption |
-| `AUTH_SECRET` | Yes | Random 32+ byte secret used to sign the operator session cookie |
-| `APP_PASSWORD` | Yes | The single shared operator login password |
-| `CRON_SECRET` | Yes | Shared secret required to call `POST /api/cron` (external scheduler) |
+| `SUPABASE_URL` | Yes | Supabase project URL, e.g. `https://PROJECT_REF.supabase.co` |
+| `SUPABASE_SECRET_KEY` | Yes | Server-only Supabase secret key used for Social Hub database access |
+| `SUPABASE_SERVICE_ROLE_KEY` | Fallback | Legacy server/service-role key name supported when `SUPABASE_SECRET_KEY` is not set |
+| `ANTHROPIC_API_KEY` | Yes for AI | Anthropic API key for AI generation/reply workflows |
+| `TOKEN_ENCRYPTION_KEY` | Yes | 32-character secret used for token encryption |
+| `AUTH_SECRET` | Yes | Random secret used to sign the operator session cookie |
+| `APP_PASSWORD` | Yes | Shared operator login password |
+| `CRON_SECRET` | Yes | Secret required by the cron endpoint |
 | `FACEBOOK_APP_ID` | Optional | Facebook OAuth App ID |
 | `FACEBOOK_APP_SECRET` | Optional | Facebook OAuth App Secret |
-| `INSTAGRAM_APP_ID` | Optional | Instagram Business App ID |
-| `INSTAGRAM_APP_SECRET` | Optional | Instagram App Secret |
-| `TWITTER_CLIENT_ID` | Optional | Twitter OAuth 2.0 Client ID |
-| `TWITTER_CLIENT_SECRET` | Optional | Twitter OAuth 2.0 Client Secret |
-| `LINKEDIN_CLIENT_ID` | Optional | LinkedIn App Client ID |
-| `LINKEDIN_CLIENT_SECRET` | Optional | LinkedIn App Client Secret |
-| `TIKTOK_CLIENT_KEY` | Optional | TikTok Content API Client Key |
-| `TIKTOK_CLIENT_SECRET` | Optional | TikTok App Client Secret |
-| `YOUTUBE_CLIENT_ID` | Optional | YouTube (Google) OAuth Client ID |
-| `YOUTUBE_CLIENT_SECRET` | Optional | YouTube OAuth Client Secret |
-| `REDDIT_CLIENT_ID` | Optional | Reddit App Client ID |
-| `REDDIT_CLIENT_SECRET` | Optional | Reddit App Client Secret |
-| `ARCADE_API_KEY` | Optional | Arcade API key for Twitter/Reddit posting |
-| `ARCADE_USER_ID` | Optional | Arcade user ID |
-| `NEXT_PUBLIC_BASE_URL` | Optional | Public base URL for OAuth callbacks |
+| `FACEBOOK_REDIRECT_URI` | Optional | Production Facebook OAuth callback |
+| `ARCADE_API_KEY` | Optional | Arcade API key for supported social integrations |
+| `ARCADE_BASE_URL` | Optional | Arcade API base URL |
+| `LINKEDIN_CLIENT_ID` | Optional | LinkedIn client ID |
+| `LINKEDIN_CLIENT_SECRET` | Optional | LinkedIn client secret |
+| `LINKEDIN_REDIRECT_URI` | Optional | LinkedIn OAuth callback |
+| `TIKTOK_CLIENT_KEY` | Optional | TikTok client key |
+| `TIKTOK_CLIENT_SECRET` | Optional | TikTok client secret |
+| `TIKTOK_REDIRECT_URI` | Optional | TikTok OAuth callback |
+| `GOOGLE_CLIENT_ID` | Optional | Google/YouTube OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Optional | Google/YouTube OAuth client secret |
+| `GOOGLE_REDIRECT_URI` | Optional | Google OAuth callback |
+| `NEXT_PUBLIC_APP_URL` | Yes in production | Public application URL |
+| `NEXT_PUBLIC_BASE_URL` | Yes in production | Public base URL used by callbacks |
 
-### Supabase connection format
-
-Use placeholders locally and retrieve the actual values from the Supabase project's **Connect** panel. Do not paste real credentials into source control.
+### Production Supabase format
 
 ```text
-DATABASE_URL=postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
-DIRECT_URL=postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres
+SUPABASE_URL=https://kicfnilhwenaditbgcxh.supabase.co
+SUPABASE_SECRET_KEY=<server-only-secret>
 ```
 
-For production on Vercel, make sure both variables target **Production**. Preview values should be configured separately if preview deployments need database access.
+Do not prefix the server secret with `NEXT_PUBLIC_` and do not expose it to browser code.
+
+### Production URLs
+
+```text
+NEXT_PUBLIC_APP_URL=https://social.socialtizemg.com
+NEXT_PUBLIC_BASE_URL=https://social.socialtizemg.com
+FACEBOOK_REDIRECT_URI=https://social.socialtizemg.com/api/oauth/facebook/callback
+LINKEDIN_REDIRECT_URI=https://social.socialtizemg.com/api/oauth/linkedin/callback
+TIKTOK_REDIRECT_URI=https://social.socialtizemg.com/api/oauth/tiktok/callback
+GOOGLE_REDIRECT_URI=https://social.socialtizemg.com/api/oauth/google/callback
+```
 
 ## Seed initial data
 
@@ -109,32 +112,13 @@ Body: { "brandId": "<brand-id>" }
 
 ## AI Reply Generation
 
-Powered by `claude-haiku-4-5-20251001` (fast and cost-efficient).
+Powered by `claude-haiku-4-5-20251001`.
 
-### How it works
-
-1. Navigate to Comments > click any opportunity.
-2. Click **Generate Reply** on the detail page.
-3. The system loads brand voice/context, sends the relevant discussion context to Claude, runs risk checks, and saves the draft.
-4. Review and edit the reply.
-5. Click **Approve Reply**.
-6. For owned channels, click **Post Reply**.
-7. For external channels, copy the approved reply and post manually.
-
-### Risk Levels
-
-- **LOW**: Safe to post with standard review
-- **MEDIUM**: Contains sensitive product/complaint language — review carefully
-- **HIGH**: Contains legal threat, refund demand, or fraud accusation — always escalate to human, do not post AI draft as-is
-
-## Brand Voice & Context
-
-Each brand has:
-
-- **Voice**: tone, personality, list of things to avoid, optional CTA hint
-- **Context**: products/services, target audience, key messages, FAQs
-
-Edit these at `/brands` in the dashboard. The AI system prompt is built from this data at reply-generation time.
+1. Navigate to Comments and open an opportunity.
+2. Generate a reply.
+3. Review/edit the draft and risk classification.
+4. Approve the reply.
+5. Post directly for supported owned channels, or copy it for manual posting where required.
 
 ## Architecture
 
@@ -142,25 +126,22 @@ Edit these at `/brands` in the dashboard. The AI system prompt is built from thi
 src/
   app/
     (dashboard)/
-      comments/           # Comment list + detail/approval pages
-        [id]/page.tsx     # AI reply workflow (generate → review → approve → post)
-      brands/             # Brand voice & context editor
+      comments/
+      brands/
+      campaigns/
+      schedule/
+      queue/
     api/
       comments/
-        route.ts          # List + create opportunities
-        [id]/
-          route.ts        # GET single (includes brand voice/context)
-          generate-reply/ # POST → Claude AI → save draft
-          approve/        # POST → mark approved
-          post/           # POST → publish to platform
-          skip/           # POST → mark skipped
       brands/
-        route.ts          # List + create brands
-        [id]/route.ts     # GET + PATCH + DELETE brand
+      campaigns/
+      health/
+      oauth/
+      publish/
+      schedule/
   lib/
     ai/
-      reply-generator.ts  # Anthropic SDK integration
-      risk-filter.ts      # Keyword-based risk assessment
-    brands.ts             # Brand parsing utilities
-    db.ts                 # Prisma client singleton
+    comments/
+    social/
+    db.ts                 # Supabase-backed server database adapter
 ```
