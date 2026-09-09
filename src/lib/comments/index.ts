@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { prisma } from '@/lib/db'
 import { decrypt } from '@/lib/crypto'
 import type { Platform } from '@/types'
@@ -28,6 +29,20 @@ interface ScanResult {
   platforms: string[]
 }
 
+interface NewOpportunityData {
+  platform: string
+  postUrl: string
+  postTitle?: string | null
+  postContent?: string | null
+  commentId?: string | null
+  commentText?: string | null
+  authorName?: string | null
+  authorHandle?: string | null
+  isOwned: boolean
+  relevanceNote?: string | null
+  status: string
+}
+
 async function getDecryptedConnection(
   brandId: string,
   platform: Platform
@@ -46,17 +61,58 @@ async function getDecryptedConnection(
   }
 }
 
-async function opportunityExists(
+export function buildOpportunityDedupeKey(
   brandId: string,
   postUrl: string,
   commentId: string | null
-): Promise<boolean> {
-  const where = commentId
-    ? { brandId, postUrl, commentId }
-    : { brandId, postUrl }
+): string {
+  const itemKey = commentId === null ? 'post-level' : `comment:${commentId}`
+  return createHash('sha256')
+    .update(`${brandId}\u0000${postUrl}\u0000${itemKey}`)
+    .digest('hex')
+}
 
-  const existing = await prisma.commentOpportunity.findFirst({ where })
-  return existing !== null
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === 'P2002'
+  )
+}
+
+async function createOpportunityIfNew(
+  brandId: string,
+  data: NewOpportunityData
+): Promise<boolean> {
+  const commentId = data.commentId ?? null
+  const dedupeKey = buildOpportunityDedupeKey(brandId, data.postUrl, commentId)
+
+  try {
+    await prisma.commentOpportunity.create({
+      data: {
+        dedupeKey,
+        brandId,
+        platform: data.platform,
+        postUrl: data.postUrl,
+        postTitle: data.postTitle ?? null,
+        postContent: data.postContent ?? null,
+        commentId,
+        commentText: data.commentText ?? null,
+        authorName: data.authorName ?? null,
+        authorHandle: data.authorHandle ?? null,
+        isOwned: data.isOwned,
+        relevanceNote: data.relevanceNote ?? null,
+        status: data.status,
+      },
+    })
+    return true
+  } catch (error) {
+    // The unique dedupeKey is the concurrency boundary. If another overlapping
+    // scan inserted the same opportunity first, that is a successful no-op.
+    if (isUniqueConstraintError(error)) return false
+    throw error
+  }
 }
 
 async function upsertOpportunities(
@@ -69,33 +125,27 @@ async function upsertOpportunities(
 
   for (const result of results) {
     if (result.comments.length === 0) {
-      // Post-level opportunity with no individual comments
-      const exists = await opportunityExists(brandId, result.postUrl, null)
-      if (!exists) {
-        await prisma.commentOpportunity.create({
-          data: {
-            brandId,
-            platform: result.platform,
-            postUrl: result.postUrl,
-            postTitle: result.postTitle ?? null,
-            postContent: result.postContent ?? null,
-            isOwned,
-            relevanceNote: relevanceNote ?? null,
-            status: 'PENDING',
-          },
+      // Post-level opportunity with no individual comments.
+      if (
+        await createOpportunityIfNew(brandId, {
+          platform: result.platform,
+          postUrl: result.postUrl,
+          postTitle: result.postTitle ?? null,
+          postContent: result.postContent ?? null,
+          commentId: null,
+          isOwned,
+          relevanceNote: relevanceNote ?? null,
+          status: 'PENDING',
         })
+      ) {
         created++
       }
       continue
     }
 
     for (const comment of result.comments) {
-      const exists = await opportunityExists(brandId, result.postUrl, comment.commentId)
-      if (exists) continue
-
-      await prisma.commentOpportunity.create({
-        data: {
-          brandId,
+      if (
+        await createOpportunityIfNew(brandId, {
           platform: result.platform,
           postUrl: result.postUrl,
           postTitle: result.postTitle ?? null,
@@ -107,9 +157,10 @@ async function upsertOpportunities(
           isOwned,
           relevanceNote: relevanceNote ?? null,
           status: 'PENDING',
-        },
-      })
-      created++
+        })
+      ) {
+        created++
+      }
     }
   }
 
@@ -319,18 +370,16 @@ export async function scanCommentsForBrand(params: ScanParams): Promise<ScanResu
     }
 
     // Fallback: record the URL as a post-level opportunity to monitor manually.
-    const exists = await opportunityExists(brandId, extra.url, null)
-    if (!exists) {
-      await prisma.commentOpportunity.create({
-        data: {
-          brandId,
-          platform,
-          postUrl: extra.url,
-          isOwned: false,
-          relevanceNote: extra.relevanceNote ?? null,
-          status: 'PENDING',
-        },
+    if (
+      await createOpportunityIfNew(brandId, {
+        platform,
+        postUrl: extra.url,
+        commentId: null,
+        isOwned: false,
+        relevanceNote: extra.relevanceNote ?? null,
+        status: 'PENDING',
       })
+    ) {
       totalCreated++
       if (!activePlatforms.includes(platform)) {
         activePlatforms.push(platform)
