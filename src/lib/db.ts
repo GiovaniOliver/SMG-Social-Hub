@@ -161,16 +161,16 @@ function matchesCondition(actual: any, condition: any): boolean {
         if (matchesCondition(actual, expected)) return false
         break
       case 'gt':
-        if (!(actual > expected)) return false
+        if (!(actual > (expected as any))) return false
         break
       case 'gte':
-        if (!(actual >= expected)) return false
+        if (!(actual >= (expected as any))) return false
         break
       case 'lt':
-        if (!(actual < expected)) return false
+        if (!(actual < (expected as any))) return false
         break
       case 'lte':
-        if (!(actual <= expected)) return false
+        if (!(actual <= (expected as any))) return false
         break
       case 'contains':
         if (!String(actual ?? '').includes(String(expected))) return false
