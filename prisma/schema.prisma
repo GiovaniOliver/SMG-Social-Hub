@@ -82,6 +82,7 @@ model ScheduledPost {
 
 model CommentOpportunity {
   id            String    @id @default(cuid())
+  dedupeKey     String    @unique
   brandId       String
   brand         Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
   platform      String    // FACEBOOK | INSTAGRAM | TWITTER | LINKEDIN | TIKTOK | YOUTUBE | REDDIT
