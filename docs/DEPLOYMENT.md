@@ -1,6 +1,6 @@
 # Deployment Notes
 
-SMG Social Hub is deployed to Vercel and uses Supabase Postgres through Prisma.
+SMG Social Hub is deployed to Vercel and uses the shared SMG Supabase project through the server-side Supabase client.
 
 ## Production deployment source
 
@@ -8,26 +8,37 @@ Production deployments should come from the GitHub `main` branch. Avoid deployin
 
 ## Required database environment variables
 
-Configure these in Vercel Project Settings → Environment Variables for the Production environment:
-
-- `DATABASE_URL`: Supabase Supavisor transaction-pooler URL for runtime/serverless traffic.
-- `DIRECT_URL`: direct Supabase Postgres URL for Prisma migrations and introspection.
-
-Example shapes only — never commit real credentials:
+Configure these in Vercel Project Settings → Environment Variables for Production:
 
 ```text
-DATABASE_URL=postgresql://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1
-DIRECT_URL=postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres
+SUPABASE_URL=https://kicfnilhwenaditbgcxh.supabase.co
+SUPABASE_SECRET_KEY=<server-only-secret>
+```
+
+`SUPABASE_SERVICE_ROLE_KEY` is accepted as a legacy fallback if the project still uses that key name. Do not use an anon/publishable key for server database access because the `social_hub_*` tables are restricted to server/service-role access.
+
+`DATABASE_URL` and `DIRECT_URL` are not used by Social Hub after the Supabase-client migration.
+
+## Production application URLs
+
+```text
+NEXT_PUBLIC_APP_URL=https://social.socialtizemg.com
+NEXT_PUBLIC_BASE_URL=https://social.socialtizemg.com
+FACEBOOK_REDIRECT_URI=https://social.socialtizemg.com/api/oauth/facebook/callback
+LINKEDIN_REDIRECT_URI=https://social.socialtizemg.com/api/oauth/linkedin/callback
+TIKTOK_REDIRECT_URI=https://social.socialtizemg.com/api/oauth/tiktok/callback
+GOOGLE_REDIRECT_URI=https://social.socialtizemg.com/api/oauth/google/callback
 ```
 
 ## Verification after a production merge
 
-1. Confirm Vercel created a deployment from the expected GitHub commit.
+1. Confirm Vercel created a deployment from the expected GitHub `main` commit.
 2. Confirm `social.socialtizemg.com` points to the new production deployment.
-3. Check runtime logs for Prisma connection/authentication errors.
+3. Call `/api/health` and confirm the database status is `ok`.
 4. Load the dashboard and verify database-backed pages render.
 5. Verify Brands, Create, Library, Campaigns, Calendar, Schedule, Queue, Comments, and publishing workflows.
+6. Review Vercel runtime logs for Supabase API/authentication errors.
 
 ## Security
 
-Do not commit `.env`, `.env.local`, database passwords, OAuth secrets, token-encryption secrets, or API keys. These files are ignored by `.gitignore` and should remain local or in Vercel environment settings.
+Never commit `.env`, `.env.local`, Supabase server secrets, OAuth secrets, token-encryption secrets, or API keys. A Supabase server secret must never use a `NEXT_PUBLIC_` variable name.

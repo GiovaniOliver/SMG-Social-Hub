@@ -42,60 +42,58 @@ interface ParsedScheduledPost {
   updatedAt: string
 }
 
-function parsePost(
-  post: {
-    id: string
-    brandId: string
-    platforms: string
-    content: string
-    mediaUrls: string
-    scheduledAt: Date
-    status: string
-    publishedAt: Date | null
-    error: string | null
-    results: string
-    notes: string | null
-    createdAt: Date
-    updatedAt: Date
-    brand: { name: string }
-  }
-): ParsedScheduledPost {
-  let platforms: Platform[] = []
-  try {
-    platforms = JSON.parse(post.platforms)
-  } catch {
-    platforms = []
-  }
+function toIso(value: unknown): string {
+  if (value instanceof Date) return value.toISOString()
+  return new Date(String(value)).toISOString()
+}
 
-  let mediaUrls: string[] = []
+function parseJsonArray<T>(value: unknown): T[] {
+  if (Array.isArray(value)) return value as T[]
+  if (typeof value !== 'string') return []
   try {
-    mediaUrls = JSON.parse(post.mediaUrls)
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? (parsed as T[]) : []
   } catch {
-    mediaUrls = []
+    return []
   }
+}
 
-  let results: Record<string, unknown> = {}
-  try {
-    results = JSON.parse(post.results)
-  } catch {
-    results = {}
+function parseJsonObject(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>
   }
+  if (typeof value !== 'string') return {}
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+function parsePost(post: Record<string, unknown>): ParsedScheduledPost {
+  const brand =
+    post.brand && typeof post.brand === 'object'
+      ? (post.brand as Record<string, unknown>)
+      : {}
 
   return {
-    id: post.id,
-    brandId: post.brandId,
-    brandName: post.brand.name,
-    platforms,
-    content: post.content,
-    mediaUrls,
-    scheduledAt: post.scheduledAt.toISOString(),
-    status: post.status as PostStatus,
-    publishedAt: post.publishedAt ? post.publishedAt.toISOString() : null,
-    error: post.error,
-    results,
-    notes: post.notes,
-    createdAt: post.createdAt.toISOString(),
-    updatedAt: post.updatedAt.toISOString(),
+    id: String(post.id ?? ''),
+    brandId: String(post.brandId ?? ''),
+    brandName: String(brand.name ?? ''),
+    platforms: parseJsonArray<Platform>(post.platforms),
+    content: String(post.content ?? ''),
+    mediaUrls: parseJsonArray<string>(post.mediaUrls),
+    scheduledAt: toIso(post.scheduledAt),
+    status: String(post.status ?? 'PENDING') as PostStatus,
+    publishedAt: post.publishedAt ? toIso(post.publishedAt) : null,
+    error: typeof post.error === 'string' ? post.error : null,
+    results: parseJsonObject(post.results),
+    notes: typeof post.notes === 'string' ? post.notes : null,
+    createdAt: toIso(post.createdAt),
+    updatedAt: toIso(post.updatedAt),
   }
 }
 
@@ -115,9 +113,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   const where: Record<string, unknown> = { brandId }
-  if (status) {
-    where.status = status
-  }
+  if (status) where.status = status
 
   const [total, posts] = await Promise.all([
     prisma.scheduledPost.count({ where }),
@@ -132,7 +128,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const response: ApiResponse<ParsedScheduledPost[]> = {
     success: true,
-    data: posts.map(parsePost),
+    data: posts.map((post) => parsePost(post)),
     meta: { total, page, limit },
   }
 
@@ -157,8 +153,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json(response, { status: 422 })
   }
 
-  const { brandId, platforms, content, mediaUrls, scheduledAt, notes, title, subreddit } =
-    parsed.data
+  const { brandId, platforms, content, mediaUrls, scheduledAt, notes, title, subreddit } = parsed.data
 
   const brand = await prisma.brand.findUnique({ where: { id: brandId } })
   if (!brand) {
