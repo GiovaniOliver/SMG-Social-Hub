@@ -3,25 +3,28 @@ import 'server-only'
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.SUPABASE_URL
-const supabaseSecretKey =
-  process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+let adminClient: SupabaseClient | null = null
 
-if (!supabaseUrl) {
-  throw new Error('SUPABASE_URL is required')
+function getSupabaseAdmin(): SupabaseClient {
+  const supabaseUrl = process.env.SUPABASE_URL
+  const supabaseSecretKey =
+    process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl) throw new Error('SUPABASE_URL is required')
+  if (!supabaseSecretKey) throw new Error('SUPABASE_SECRET_KEY is required')
+
+  if (!adminClient) {
+    adminClient = createClient(supabaseUrl, supabaseSecretKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+    })
+  }
+
+  return adminClient
 }
-
-if (!supabaseSecretKey) {
-  throw new Error('SUPABASE_SECRET_KEY is required')
-}
-
-export const supabaseAdmin = createClient(supabaseUrl, supabaseSecretKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false,
-  },
-})
 
 type Row = Record<string, any>
 type QueryArgs = Record<string, any> | undefined
@@ -243,7 +246,7 @@ function applySelect(row: Row, select: any): Row {
 }
 
 async function readAll(model: ModelName): Promise<Row[]> {
-  const { data, error } = await supabaseAdmin.from(MODEL_CONFIG[model].table).select('*')
+  const { data, error } = await getSupabaseAdmin().from(MODEL_CONFIG[model].table).select('*')
   if (error) throw new Error(`[database:${model}] ${error.message}`)
   return (data || []) as Row[]
 }
@@ -325,7 +328,7 @@ function modelAdapter(model: ModelName) {
 
     async create(args: QueryArgs): Promise<Row> {
       const payload = cleanData(model, args?.data || {})
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await getSupabaseAdmin()
         .from(MODEL_CONFIG[model].table)
         .insert(payload)
         .select('*')
@@ -338,7 +341,7 @@ function modelAdapter(model: ModelName) {
       const values = Array.isArray(args?.data) ? args!.data : [args?.data]
       const payload = values.filter(Boolean).map((value) => cleanData(model, value))
       if (payload.length === 0) return { count: 0 }
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await getSupabaseAdmin()
         .from(MODEL_CONFIG[model].table)
         .insert(payload)
         .select('id')
@@ -346,7 +349,7 @@ function modelAdapter(model: ModelName) {
         if (args?.skipDuplicates && /duplicate key|unique constraint/i.test(error.message)) {
           let count = 0
           for (const item of payload) {
-            const { error: singleError } = await supabaseAdmin.from(MODEL_CONFIG[model].table).insert(item)
+            const { error: singleError } = await getSupabaseAdmin().from(MODEL_CONFIG[model].table).insert(item)
             if (!singleError) count += 1
             else if (!/duplicate key|unique constraint/i.test(singleError.message)) throw new Error(singleError.message)
           }
@@ -363,7 +366,7 @@ function modelAdapter(model: ModelName) {
       const payload = cleanData(model, args?.data || {})
       delete payload.id
       if ('updatedAt' in existing && !('updatedAt' in payload)) payload.updatedAt = new Date().toISOString()
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await getSupabaseAdmin()
         .from(MODEL_CONFIG[model].table)
         .update(payload)
         .eq('id', existing.id)
@@ -380,7 +383,7 @@ function modelAdapter(model: ModelName) {
         const payload = cleanData(model, args?.data || {})
         delete payload.id
         if ('updatedAt' in existing && !('updatedAt' in payload)) payload.updatedAt = new Date().toISOString()
-        const { error } = await supabaseAdmin
+        const { error } = await getSupabaseAdmin()
           .from(MODEL_CONFIG[model].table)
           .update(payload)
           .eq('id', existing.id)
@@ -393,7 +396,7 @@ function modelAdapter(model: ModelName) {
     async delete(args: QueryArgs): Promise<Row> {
       const existing = await this.findFirst({ where: args?.where })
       if (!existing) throw new Error(`[database:${model}.delete] Record not found`)
-      const { error } = await supabaseAdmin.from(MODEL_CONFIG[model].table).delete().eq('id', existing.id)
+      const { error } = await getSupabaseAdmin().from(MODEL_CONFIG[model].table).delete().eq('id', existing.id)
       if (error) throw new Error(`[database:${model}.delete] ${error.message}`)
       return existing
     },
@@ -402,7 +405,7 @@ function modelAdapter(model: ModelName) {
       const matches = await this.findMany({ where: args?.where })
       let count = 0
       for (const existing of matches) {
-        const { error } = await supabaseAdmin.from(MODEL_CONFIG[model].table).delete().eq('id', existing.id)
+        const { error } = await getSupabaseAdmin().from(MODEL_CONFIG[model].table).delete().eq('id', existing.id)
         if (error) throw new Error(`[database:${model}.deleteMany] ${error.message}`)
         count += 1
       }
@@ -448,7 +451,7 @@ export const db = {
 export const prisma = db
 
 export async function databaseHealthCheck(): Promise<void> {
-  const { error } = await supabaseAdmin.from('social_hub_brands').select('id').limit(1)
+  const { error } = await getSupabaseAdmin().from('social_hub_brands').select('id').limit(1)
   if (error) throw new Error(error.message)
 }
 
