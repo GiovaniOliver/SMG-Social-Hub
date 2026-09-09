@@ -26,6 +26,16 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseSecretKey, {
 type Row = Record<string, any>
 type QueryArgs = Record<string, any> | undefined
 
+type ModelName =
+  | 'brand'
+  | 'platformConnection'
+  | 'scheduledPost'
+  | 'commentOpportunity'
+  | 'commentDraft'
+  | 'campaign'
+  | 'contentPiece'
+  | 'generatedContent'
+
 type Relation = {
   model: ModelName
   type: 'one' | 'many'
@@ -37,8 +47,6 @@ type ModelConfig = {
   table: string
   relations: Record<string, Relation>
 }
-
-type ModelName = keyof typeof MODEL_CONFIG
 
 const MODEL_CONFIG = {
   brand: {
@@ -97,7 +105,7 @@ const MODEL_CONFIG = {
       brand: { model: 'brand', type: 'one', localKey: 'brandId', foreignKey: 'id' },
     },
   },
-} as const satisfies Record<string, ModelConfig>
+} as const satisfies Record<ModelName, ModelConfig>
 
 function cleanData(model: ModelName, value: Row): Row {
   const result: Row = {}
@@ -410,11 +418,19 @@ function modelAdapter(model: ModelName) {
   }
 }
 
-const adapters = Object.fromEntries(
-  (Object.keys(MODEL_CONFIG) as ModelName[]).map((model) => [model, modelAdapter(model)])
-) as Record<ModelName, ReturnType<typeof modelAdapter>>
+type ModelAdapter = ReturnType<typeof modelAdapter>
+type DatabaseModels = Record<ModelName, ModelAdapter>
 
-type DatabaseModels = typeof adapters
+const adapters: DatabaseModels = {
+  brand: modelAdapter('brand'),
+  platformConnection: modelAdapter('platformConnection'),
+  scheduledPost: modelAdapter('scheduledPost'),
+  commentOpportunity: modelAdapter('commentOpportunity'),
+  commentDraft: modelAdapter('commentDraft'),
+  campaign: modelAdapter('campaign'),
+  contentPiece: modelAdapter('contentPiece'),
+  generatedContent: modelAdapter('generatedContent'),
+}
 
 async function transaction<T>(
   input: ((tx: DatabaseModels) => Promise<T>) | Promise<T>[]
