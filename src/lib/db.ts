@@ -23,7 +23,7 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseSecretKey, {
   },
 })
 
-type Row = Record<string, unknown>
+type Row = Record<string, any>
 type QueryArgs = Record<string, any> | undefined
 
 type Relation = {
@@ -215,8 +215,8 @@ function sortRows(rows: Row[], orderBy: any): Row[] {
   return [...rows].sort((a, b) => {
     for (const rule of rules) {
       const [field, direction] = Object.entries(rule)[0] as [string, any]
-      const av = a[field] as any
-      const bv = b[field] as any
+      const av = a[field]
+      const bv = b[field]
       if (av === bv) continue
       const result = av == null ? -1 : bv == null ? 1 : av < bv ? -1 : 1
       return direction === 'desc' ? -result : result
@@ -298,7 +298,7 @@ function modelAdapter(model: ModelName) {
       return rows.filter((row) => matchesWhere(row, args?.where)).length
     },
 
-    async findMany(args?: QueryArgs): Promise<any[]> {
+    async findMany(args?: QueryArgs): Promise<Row[]> {
       let rows = (await readAll(model)).filter((row) => matchesWhere(row, args?.where))
       rows = sortRows(rows, args?.orderBy)
       if (typeof args?.skip === 'number') rows = rows.slice(args.skip)
@@ -306,16 +306,16 @@ function modelAdapter(model: ModelName) {
       return Promise.all(rows.map((row) => materialize(model, row, args)))
     },
 
-    async findFirst(args?: QueryArgs): Promise<any | null> {
+    async findFirst(args?: QueryArgs): Promise<Row | null> {
       const rows = await this.findMany({ ...args, take: 1 })
       return rows[0] ?? null
     },
 
-    async findUnique(args: QueryArgs): Promise<any | null> {
+    async findUnique(args: QueryArgs): Promise<Row | null> {
       return this.findFirst(args)
     },
 
-    async create(args: QueryArgs): Promise<any> {
+    async create(args: QueryArgs): Promise<Row> {
       const payload = cleanData(model, args?.data || {})
       const { data, error } = await supabaseAdmin
         .from(MODEL_CONFIG[model].table)
@@ -349,7 +349,7 @@ function modelAdapter(model: ModelName) {
       return { count: data?.length || 0 }
     },
 
-    async update(args: QueryArgs): Promise<any> {
+    async update(args: QueryArgs): Promise<Row> {
       const existing = await this.findFirst({ where: args?.where })
       if (!existing) throw new Error(`[database:${model}.update] Record not found`)
       const payload = cleanData(model, args?.data || {})
@@ -382,7 +382,7 @@ function modelAdapter(model: ModelName) {
       return { count }
     },
 
-    async delete(args: QueryArgs): Promise<any> {
+    async delete(args: QueryArgs): Promise<Row> {
       const existing = await this.findFirst({ where: args?.where })
       if (!existing) throw new Error(`[database:${model}.delete] Record not found`)
       const { error } = await supabaseAdmin.from(MODEL_CONFIG[model].table).delete().eq('id', existing.id)
@@ -401,7 +401,7 @@ function modelAdapter(model: ModelName) {
       return { count }
     },
 
-    async upsert(args: QueryArgs): Promise<any> {
+    async upsert(args: QueryArgs): Promise<Row> {
       const existing = await this.findFirst({ where: args?.where })
       return existing
         ? this.update({ where: { id: existing.id }, data: args?.update, include: args?.include, select: args?.select })
@@ -414,17 +414,21 @@ const adapters = Object.fromEntries(
   (Object.keys(MODEL_CONFIG) as ModelName[]).map((model) => [model, modelAdapter(model)])
 ) as Record<ModelName, ReturnType<typeof modelAdapter>>
 
-export const db: any = {
-  ...adapters,
-  async $transaction(input: any): Promise<any> {
-    if (typeof input === 'function') return input(db)
-    if (Array.isArray(input)) return Promise.all(input)
-    return input
-  },
+type DatabaseModels = typeof adapters
+
+async function transaction<T>(
+  input: ((tx: DatabaseModels) => Promise<T>) | Promise<T>[]
+): Promise<T | T[]> {
+  if (typeof input === 'function') return input(adapters)
+  return Promise.all(input)
 }
 
-// Transitional alias so existing feature code can be migrated incrementally without
-// importing or running Prisma. This object is backed entirely by Supabase.
+export const db = {
+  ...adapters,
+  $transaction: transaction,
+}
+
+// Compatibility alias only. No Prisma package/client/engine is used by this project.
 export const prisma = db
 
 export async function databaseHealthCheck(): Promise<void> {
