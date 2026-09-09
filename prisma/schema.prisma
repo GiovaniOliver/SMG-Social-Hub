@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Brand {
@@ -36,6 +37,8 @@ model Brand {
   commentOpportunities CommentOpportunity[]
   campaigns            Campaign[]
   generatedContent     GeneratedContent[]
+
+  @@map("social_hub_brands")
 }
 
 model PlatformConnection {
@@ -54,6 +57,7 @@ model PlatformConnection {
   updatedAt    DateTime  @updatedAt
 
   @@unique([brandId, platform])
+  @@map("social_hub_platform_connections")
 }
 
 model ScheduledPost {
@@ -72,6 +76,8 @@ model ScheduledPost {
   contentPiece ContentPiece?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@map("social_hub_scheduled_posts")
 }
 
 model CommentOpportunity {
@@ -95,6 +101,8 @@ model CommentOpportunity {
   updatedAt     DateTime  @updatedAt
 
   drafts        CommentDraft[]
+
+  @@map("social_hub_comment_opportunities")
 }
 
 model CommentDraft {
@@ -104,6 +112,8 @@ model CommentDraft {
   content       String
   isApproved    Boolean            @default(false)
   createdAt     DateTime           @default(now())
+
+  @@map("social_hub_comment_drafts")
 }
 
 model Campaign {
@@ -118,6 +128,8 @@ model Campaign {
   metadata    String?        // JSON string
   createdAt   DateTime       @default(now())
   content     ContentPiece[]
+
+  @@map("social_hub_campaigns")
 }
 
 model ContentPiece {
@@ -144,6 +156,8 @@ model ContentPiece {
   metadata          String?        // JSON string
   scheduledPostId   String?        @unique
   scheduledPost     ScheduledPost? @relation(fields: [scheduledPostId], references: [id])
+
+  @@map("social_hub_content_pieces")
 }
 
 model GeneratedContent {
@@ -160,4 +174,6 @@ model GeneratedContent {
   videoUrl     String?
   visualPrompt String?
   createdAt    DateTime @default(now())
+
+  @@map("social_hub_generated_content")
 }

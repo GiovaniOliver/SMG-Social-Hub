@@ -1,8 +1,0 @@
-{
-  "session_id": "f8af0814-0fc4-4460-9b1d-65bdb06fa56d",
-  "prompts": [
-    "continue the work from the previous chat",
-    "<task-notification>\n<task-id>blu6z3zri</task-id>\n<tool-use-id>toolu_01YTedM9A4NM7a6JyQbnKCqg</tool-use-id>\n<output-file>C:\\Users\\OLIVER~2\\AppData\\Local\\Temp\\claude\\C--Users-OliverProductions-Desktop-2-DEVELOPMENT-Work-SMG-Social-Hub\\f8af0814-0fc4-4460-9b1d-65bdb06fa56d\\tasks\\blu6z3zri.output</output-file>\n<status>completed</status>\n<summary>Background command \"Install vitest in background\" completed (exit code 0)</summary>\n</task-notification>",
-    "yes proceed"
-  ]
-}

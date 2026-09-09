@@ -1,24 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const { mkdirSync, writeFileSync } = vi.hoisted(() => ({
-  mkdirSync: vi.fn(),
-  writeFileSync: vi.fn(),
-}))
+const { upload, getPublicUrl, createClient } = vi.hoisted(() => {
+  const upload = vi.fn()
+  const getPublicUrl = vi.fn()
+  const createClient = vi.fn(() => ({
+    storage: { from: () => ({ upload, getPublicUrl }) },
+  }))
+  return { upload, getPublicUrl, createClient }
+})
 
-vi.mock('fs', () => ({
-  default: { mkdirSync, writeFileSync },
-  mkdirSync,
-  writeFileSync,
-}))
+vi.mock('@supabase/supabase-js', () => ({ createClient }))
 
 const { randomUUID } = vi.hoisted(() => ({ randomUUID: vi.fn(() => 'fixed-uuid') }))
 vi.mock('crypto', () => ({ randomUUID }))
 
 import { sanitizeFilename, isAllowedImageExtension, isWithinSizeLimit, saveLogoBuffer, isValidLogoUrl } from './uploads'
 
+const originalEnv = { ...process.env }
+
 beforeEach(() => {
-  mkdirSync.mockReset()
-  writeFileSync.mockReset()
+  upload.mockReset()
+  getPublicUrl.mockReset()
+  createClient.mockClear()
+  process.env = { ...originalEnv, SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'service-key' }
 })
 
 describe('sanitizeFilename', () => {
@@ -57,15 +61,31 @@ describe('isWithinSizeLimit', () => {
 })
 
 describe('saveLogoBuffer', () => {
-  it('creates the upload directory and writes the file, returning a public URL', () => {
-    const url = saveLogoBuffer(Buffer.from('fake-image-bytes'), 'My Logo.png')
+  it('uploads to Supabase Storage and returns the public URL', async () => {
+    upload.mockResolvedValue({ error: null })
+    getPublicUrl.mockReturnValue({ data: { publicUrl: 'https://example.supabase.co/storage/v1/object/public/social-hub-logos/fixed-uuid-my-logo.png' } })
 
-    expect(mkdirSync).toHaveBeenCalledWith(expect.stringContaining('uploads'), { recursive: true })
-    expect(writeFileSync).toHaveBeenCalledWith(
-      expect.stringContaining('fixed-uuid-my-logo.png'),
-      Buffer.from('fake-image-bytes')
+    const url = await saveLogoBuffer(Buffer.from('fake-image-bytes'), 'My Logo.png')
+
+    expect(upload).toHaveBeenCalledWith(
+      'fixed-uuid-my-logo.png',
+      Buffer.from('fake-image-bytes'),
+      expect.objectContaining({ contentType: 'image/png' })
     )
-    expect(url).toBe('/uploads/logos/fixed-uuid-my-logo.png')
+    expect(url).toBe('https://example.supabase.co/storage/v1/object/public/social-hub-logos/fixed-uuid-my-logo.png')
+  })
+
+  it('throws when the upload fails', async () => {
+    upload.mockResolvedValue({ error: { message: 'bucket not found' } })
+
+    await expect(saveLogoBuffer(Buffer.from('x'), 'logo.png')).rejects.toThrow(/bucket not found/)
+  })
+
+  it('throws when Supabase env vars are not configured', async () => {
+    delete process.env.SUPABASE_URL
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    await expect(saveLogoBuffer(Buffer.from('x'), 'logo.png')).rejects.toThrow(/SUPABASE_URL/)
   })
 })
 

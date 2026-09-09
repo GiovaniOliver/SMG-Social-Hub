@@ -30,6 +30,10 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# Local session and runtime artifacts
+.claude/
+logs/
+
 # Vercel
 .vercel
 

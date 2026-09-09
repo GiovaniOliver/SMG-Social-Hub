@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     if (suggestedLogoPath) {
       const buffer = fs.readFileSync(suggestedLogoPath)
       if (isWithinSizeLimit(buffer.byteLength)) {
-        suggestedLogoUrl = saveLogoBuffer(buffer, suggestedLogoPath.split(/[\\/]/).pop() ?? 'logo.png')
+        suggestedLogoUrl = await saveLogoBuffer(buffer, suggestedLogoPath.split(/[\\/]/).pop() ?? 'logo.png')
       }
     }
 

@@ -66,7 +66,7 @@ export default function CalendarPage() {
       <div>
         <h1 className="text-xl font-bold text-white">Calendar</h1>
         <p className="text-sm text-slate-400 mt-0.5">
-          Every generated content piece across this brand's campaigns, by day.
+          Every generated content piece across this brand&apos;s campaigns, by day.
         </p>
       </div>
 

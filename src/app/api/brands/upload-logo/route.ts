@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'File too large (5MB max).' }, { status: 400 })
     }
 
-    const url = saveLogoBuffer(Buffer.from(arrayBuffer), file.name)
+    const url = await saveLogoBuffer(Buffer.from(arrayBuffer), file.name)
     return NextResponse.json({ success: true, data: { url } })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Upload failed'
