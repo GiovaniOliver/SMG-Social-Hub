@@ -5,10 +5,6 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const brandId = searchParams.get('brandId')
 
-  if (!brandId) {
-    return Response.json({ success: false, error: 'brandId is required' }, { status: 400 })
-  }
-
   const clientId = process.env.LINKEDIN_CLIENT_ID
   const redirectUri = process.env.LINKEDIN_REDIRECT_URI
 
@@ -20,7 +16,6 @@ export async function GET(request: NextRequest) {
   }
 
   const scopes = ['openid', 'profile', 'email', 'w_member_social'].join(' ')
-
   const state = await createOAuthState(brandId, 'linkedin')
 
   const params = new URLSearchParams({
@@ -31,7 +26,5 @@ export async function GET(request: NextRequest) {
     state,
   })
 
-  const authUrl = `https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`
-
-  return Response.redirect(authUrl)
+  return Response.redirect(`https://www.linkedin.com/oauth/v2/authorization?${params.toString()}`)
 }
