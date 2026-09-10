@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/db'
-import { encrypt } from '@/lib/crypto'
+import { verifyOAuthState } from '@/lib/security/oauth-state'
+import { upsertProviderConnection, upsertSocialAccount } from '@/lib/social-accounts'
 
 interface TikTokTokenResponse {
   access_token: string
@@ -13,16 +13,16 @@ interface TikTokTokenResponse {
 }
 
 interface TikTokUserInfo {
-  data: {
-    user: {
-      open_id: string
-      display_name: string
-      avatar_url: string
+  data?: {
+    user?: {
+      open_id?: string
+      display_name?: string
+      avatar_url?: string
     }
   }
-  error: {
-    code: string
-    message: string
+  error?: {
+    code?: string
+    message?: string
   }
 }
 
@@ -44,106 +44,87 @@ async function exchangeCodeForToken(
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
+    cache: 'no-store',
   })
-
-  if (!res.ok) {
-    const error = await res.text()
-    throw new Error(`TikTok token exchange failed: ${error}`)
-  }
-
+  if (!res.ok) throw new Error(`TikTok token exchange failed (${res.status})`)
   return res.json()
 }
 
 async function getUserInfo(accessToken: string): Promise<TikTokUserInfo> {
   const res = await fetch(
     'https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name,avatar_url',
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }
+    { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' }
   )
-
-  if (!res.ok) {
-    const error = await res.text()
-    throw new Error(`Failed to fetch TikTok user info: ${error}`)
-  }
-
+  if (!res.ok) throw new Error(`TikTok profile discovery failed (${res.status})`)
   return res.json()
 }
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
-  const state = searchParams.get('state')
+  const stateValue = searchParams.get('state')
   const errorParam = searchParams.get('error')
-
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
   if (errorParam) {
-    const desc = searchParams.get('error_description') ?? 'OAuth was denied'
-    return Response.redirect(`${appUrl}/connect?error=${encodeURIComponent(desc)}`)
+    const desc = searchParams.get('error_description') ?? 'TikTok authorization was denied'
+    return Response.redirect(`${appUrl}/accounts?error=${encodeURIComponent(desc)}`)
+  }
+  if (!code || !stateValue) {
+    return Response.redirect(`${appUrl}/accounts?error=Missing+code+or+state`)
   }
 
-  if (!code || !state) {
-    return Response.redirect(`${appUrl}/connect?error=Missing+code+or+state`)
-  }
-
-  let brandId: string
-  try {
-    const decoded = JSON.parse(Buffer.from(state, 'base64url').toString())
-    brandId = decoded.brandId
-    if (!brandId) throw new Error('No brandId in state')
-  } catch {
-    return Response.redirect(`${appUrl}/connect?error=Invalid+state+parameter`)
+  const state = await verifyOAuthState(stateValue, 'tiktok')
+  if (!state) {
+    return Response.redirect(`${appUrl}/accounts?error=Invalid+or+expired+OAuth+state`)
   }
 
   const clientKey = process.env.TIKTOK_CLIENT_KEY
   const clientSecret = process.env.TIKTOK_CLIENT_SECRET
   const redirectUri = process.env.TIKTOK_REDIRECT_URI
-
   if (!clientKey || !clientSecret || !redirectUri) {
-    return Response.redirect(`${appUrl}/connect?error=TikTok+OAuth+not+configured`)
+    return Response.redirect(`${appUrl}/accounts?error=TikTok+OAuth+not+configured`)
   }
 
   try {
     const tokenData = await exchangeCodeForToken(code, clientKey, clientSecret, redirectUri)
     const userInfo = await getUserInfo(tokenData.access_token)
-
-    const displayName = userInfo.data?.user?.display_name ?? 'TikTok Account'
-    const openId = tokenData.open_id
-
+    const user = userInfo.data?.user
+    const openId = user?.open_id || tokenData.open_id
+    const displayName = user?.display_name || 'TikTok Account'
+    const scopes = tokenData.scope.split(',').map((scope) => scope.trim()).filter(Boolean)
     const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000)
 
-    await prisma.platformConnection.upsert({
-      where: { brandId_platform: { brandId, platform: 'TIKTOK' } },
-      create: {
-        brandId,
-        platform: 'TIKTOK',
-        accountId: openId,
-        accountLabel: displayName,
-        accessToken: encrypt(tokenData.access_token),
-        refreshToken: encrypt(tokenData.refresh_token),
-        expiresAt,
-        scopes: JSON.stringify(tokenData.scope.split(',')),
-        isActive: true,
-      },
-      update: {
-        accountId: openId,
-        accountLabel: displayName,
-        accessToken: encrypt(tokenData.access_token),
-        refreshToken: encrypt(tokenData.refresh_token),
-        expiresAt,
-        scopes: JSON.stringify(tokenData.scope.split(',')),
-        isActive: true,
-      },
+    const connection = await upsertProviderConnection({
+      platform: 'TIKTOK',
+      accountId: openId,
+      accountLabel: displayName,
+      accessToken: tokenData.access_token,
+      refreshToken: tokenData.refresh_token,
+      expiresAt,
+      scopes,
+    })
+
+    await upsertSocialAccount({
+      providerConnectionId: connection.id,
+      platform: 'TIKTOK',
+      accountType: 'PROFILE',
+      externalAccountId: openId,
+      displayName,
+      avatarUrl: user?.avatar_url || null,
+      publishingCapability: scopes.includes('video.publish') ? 'AUTOMATIC' : 'READ_ONLY',
+      connectionStatus: 'CONNECTED',
+      metadata: { source: 'tiktok_oauth' },
+      lastVerifiedAt: new Date(),
     })
 
     return Response.redirect(
-      `${appUrl}/connect?success=${encodeURIComponent('TikTok connected successfully')}&brandId=${brandId}`
+      `${appUrl}/accounts?success=${encodeURIComponent(`TikTok account ${displayName} connected`)}`
     )
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'TikTok OAuth failed'
+    console.error('[oauth:tiktok]', error)
     return Response.redirect(
-      `${appUrl}/connect?error=${encodeURIComponent(message)}&brandId=${brandId}`
+      `${appUrl}/accounts?error=${encodeURIComponent('TikTok connection failed. Check the OAuth configuration and try again.')}`
     )
   }
 }
