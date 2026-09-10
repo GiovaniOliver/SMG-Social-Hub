@@ -22,6 +22,7 @@ export interface SocialAccountRow {
   metadata: Record<string, unknown>
   isActive: boolean
   lastVerifiedAt: string | null
+  providerExpiresAt?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -68,7 +69,8 @@ function admin(): SupabaseClient {
 }
 
 export async function listSocialAccounts(): Promise<SocialAccountRow[]> {
-  const { data, error } = await admin()
+  const db = admin()
+  const { data, error } = await db
     .from('social_hub_accounts')
     .select('*')
     .eq('isActive', true)
@@ -76,7 +78,30 @@ export async function listSocialAccounts(): Promise<SocialAccountRow[]> {
     .order('displayName', { ascending: true })
 
   if (error) throw new Error(`[accounts:list] ${error.message}`)
-  return (data || []) as SocialAccountRow[]
+  const accounts = (data || []) as SocialAccountRow[]
+  const connectionIds = [...new Set(accounts.map((account) => account.providerConnectionId).filter((id): id is string => Boolean(id)))]
+  if (connectionIds.length === 0) return accounts
+
+  const { data: connections, error: connectionError } = await db
+    .from('social_hub_platform_connections')
+    .select('id,expiresAt,isActive')
+    .in('id', connectionIds)
+
+  if (connectionError) throw new Error(`[accounts:health] ${connectionError.message}`)
+  const connectionMap = new Map((connections || []).map((connection) => [connection.id, connection]))
+  const now = Date.now()
+
+  return accounts.map((account) => {
+    if (!account.providerConnectionId) return account
+    const connection = connectionMap.get(account.providerConnectionId)
+    if (!connection || !connection.isActive) {
+      return { ...account, connectionStatus: 'DISCONNECTED' as const, providerExpiresAt: connection?.expiresAt || null }
+    }
+    if (connection.expiresAt && new Date(connection.expiresAt).getTime() <= now) {
+      return { ...account, connectionStatus: 'NEEDS_REAUTH' as const, providerExpiresAt: connection.expiresAt }
+    }
+    return { ...account, providerExpiresAt: connection.expiresAt || null }
+  })
 }
 
 export async function upsertProviderConnection(input: ProviderConnectionInput) {
