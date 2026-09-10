@@ -1,15 +1,11 @@
 import type { PublishParams, PublishResult } from './types'
+import { executeArcadeTool, getArcadeExecutionValue } from '@/lib/arcade'
 
-const ARCADE_BASE_URL = process.env.ARCADE_BASE_URL || 'https://api.arcade.dev/v1'
-const TOOL_NAME = 'Reddit.SubmitPost'
+const TOOL_NAME = 'Reddit.SubmitTextPost'
 
-interface ArcadeRunResponse {
-  status?: string
-  output?: Record<string, unknown>
-  authorization?: {
-    url?: string
-  }
-  error?: string
+function recordOf(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return value as Record<string, unknown>
 }
 
 export async function publishToReddit(
@@ -20,7 +16,7 @@ export async function publishToReddit(
   }
 
   if (!params.userId?.trim()) {
-    return { success: false, error: 'User ID is required for Reddit publishing via Arcade.' }
+    return { success: false, error: 'Arcade user ID is required for Reddit publishing.' }
   }
 
   if (!params.content?.trim()) {
@@ -33,72 +29,46 @@ export async function publishToReddit(
 
   const postTitle = params.title?.trim() || params.content.slice(0, 100)
 
-  const endpoint = `${ARCADE_BASE_URL}/tools/${TOOL_NAME}/run`
-
-  let response: Response
   try {
-    response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${params.arcadeApiKey}`,
+    const execution = await executeArcadeTool({
+      toolName: TOOL_NAME,
+      userId: params.userId,
+      toolInput: {
+        subreddit: params.subreddit.replace(/^r\//, ''),
+        title: postTitle,
+        body: params.content,
       },
-      body: JSON.stringify({
-        tool_name: TOOL_NAME,
-        input: {
-          subreddit_name: params.subreddit,
-          title: postTitle,
-          text_content: params.content,
-        },
-        user_id: params.userId,
-      }),
     })
-  } catch (networkError) {
+
+    const auth = execution.output?.authorization
+    if (auth?.status !== 'completed' && auth?.url) {
+      return {
+        success: false,
+        requiresAuth: true,
+        authUrl: auth.url,
+        error: 'Reddit authorization needs to be completed before publishing.',
+      }
+    }
+
+    const value = getArcadeExecutionValue(execution)
+    const record = recordOf(value)
+    const nested = recordOf(record?.data)
+    const source = nested || record
+
+    const postId =
+      (typeof source?.post_id === 'string' && source.post_id) ||
+      (typeof source?.id === 'string' && source.id) ||
+      undefined
+    const postUrl =
+      (typeof source?.url === 'string' && source.url) ||
+      (typeof source?.permalink === 'string' && source.permalink) ||
+      undefined
+
+    return { success: true, postId, postUrl }
+  } catch (error) {
     return {
       success: false,
-      error: `Network error reaching Arcade API: ${networkError instanceof Error ? networkError.message : String(networkError)}`,
+      error: error instanceof Error ? error.message : 'Arcade Reddit publishing failed.',
     }
-  }
-
-  let data: ArcadeRunResponse
-  try {
-    data = (await response.json()) as ArcadeRunResponse
-  } catch {
-    return {
-      success: false,
-      error: `Arcade API returned an unparseable response (HTTP ${response.status}).`,
-    }
-  }
-
-  // Auth required
-  const authUrl = data.authorization?.url
-  if (authUrl) {
-    return {
-      success: false,
-      requiresAuth: true,
-      authUrl,
-      error: 'Reddit authorization required. Redirect the user to the authUrl to connect their account.',
-    }
-  }
-
-  if (!response.ok || data.status === 'error') {
-    return {
-      success: false,
-      error: data.error || `Arcade Reddit.SubmitPost failed with HTTP ${response.status}.`,
-    }
-  }
-
-  const postId =
-    (typeof data.output?.post_id === 'string' && data.output.post_id) ||
-    (typeof data.output?.id === 'string' && data.output.id) ||
-    ''
-
-  const postUrl =
-    typeof data.output?.url === 'string' ? data.output.url : undefined
-
-  return {
-    success: true,
-    postId: postId || undefined,
-    postUrl,
   }
 }
