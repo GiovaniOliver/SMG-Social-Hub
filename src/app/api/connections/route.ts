@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { markAccountsDisconnectedForConnection } from '@/lib/social-accounts'
 
 const QuerySchema = z.object({
   brandId: z.string().optional(),
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
       ? { brandId: query.data.brandId, isActive: true }
       : { isActive: true }
 
-    const connections = await prisma.platformConnection.findMany({
+    const connections = await db.platformConnection.findMany({
       where,
       select: {
         id: true,
@@ -32,7 +33,6 @@ export async function GET(request: NextRequest) {
         isActive: true,
         createdAt: true,
         updatedAt: true,
-        // Never expose access/refresh tokens in list response
       },
       orderBy: { platform: 'asc' },
     })
@@ -53,12 +53,13 @@ export async function DELETE(request: NextRequest) {
       return Response.json({ success: false, error: 'Connection id is required' }, { status: 400 })
     }
 
-    const connection = await prisma.platformConnection.findUnique({ where: { id } })
+    const connection = await db.platformConnection.findUnique({ where: { id } })
     if (!connection) {
       return Response.json({ success: false, error: 'Connection not found' }, { status: 404 })
     }
 
-    await prisma.platformConnection.delete({ where: { id } })
+    await markAccountsDisconnectedForConnection(id)
+    await db.platformConnection.delete({ where: { id } })
 
     return Response.json({ success: true, data: { deleted: true, id } })
   } catch (error) {
