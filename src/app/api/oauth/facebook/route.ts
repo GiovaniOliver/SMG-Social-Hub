@@ -18,10 +18,9 @@ export async function GET(request: NextRequest) {
   const scopes = [
     'pages_manage_posts',
     'pages_read_engagement',
+    'pages_show_list',
     'instagram_basic',
     'instagram_content_publish',
-    'pages_show_list',
-    'business_management',
   ].join(',')
 
   const state = await createOAuthState(brandId, 'facebook')
