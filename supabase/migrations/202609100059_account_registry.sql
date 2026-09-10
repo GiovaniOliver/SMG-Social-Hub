@@ -1,6 +1,10 @@
 alter table public.social_hub_platform_connections
   alter column "brandId" drop not null;
 
+create unique index if not exists social_hub_platform_connections_unassigned_identity_key
+  on public.social_hub_platform_connections(platform, "accountId")
+  where "brandId" is null;
+
 create table if not exists public.social_hub_accounts (
   id text primary key,
   "providerConnectionId" text null,
