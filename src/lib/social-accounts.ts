@@ -83,7 +83,7 @@ export async function upsertProviderConnection(input: ProviderConnectionInput) {
   const db = admin()
   const { data: existing, error: findError } = await db
     .from('social_hub_platform_connections')
-    .select('id')
+    .select('id,refreshToken')
     .eq('platform', input.platform)
     .eq('accountId', input.accountId)
     .is('brandId', null)
@@ -97,7 +97,9 @@ export async function upsertProviderConnection(input: ProviderConnectionInput) {
     accountId: input.accountId,
     accountLabel: input.accountLabel,
     accessToken: encrypt(input.accessToken),
-    refreshToken: input.refreshToken ? encrypt(input.refreshToken) : null,
+    refreshToken: input.refreshToken
+      ? encrypt(input.refreshToken)
+      : existing?.refreshToken || null,
     expiresAt: input.expiresAt ? input.expiresAt.toISOString() : null,
     scopes: JSON.stringify(input.scopes || []),
     isActive: true,
@@ -141,6 +143,13 @@ export async function upsertSocialAccount(input: SocialAccountInput): Promise<So
     existingId = existing?.id || null
   }
 
+  const lastVerifiedAt =
+    input.lastVerifiedAt === null
+      ? null
+      : input.lastVerifiedAt instanceof Date
+        ? input.lastVerifiedAt.toISOString()
+        : input.lastVerifiedAt || now
+
   const payload = {
     providerConnectionId: input.providerConnectionId || null,
     platform: input.platform,
@@ -154,10 +163,7 @@ export async function upsertSocialAccount(input: SocialAccountInput): Promise<So
     connectionStatus: input.connectionStatus || 'CONNECTED',
     metadata: input.metadata || {},
     isActive: true,
-    lastVerifiedAt:
-      input.lastVerifiedAt instanceof Date
-        ? input.lastVerifiedAt.toISOString()
-        : input.lastVerifiedAt || now,
+    lastVerifiedAt,
     updatedAt: now,
   }
 
