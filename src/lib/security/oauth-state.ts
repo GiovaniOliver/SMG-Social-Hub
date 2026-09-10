@@ -1,4 +1,4 @@
-export type OAuthProvider = 'facebook' | 'google' | 'linkedin' | 'tiktok'
+export type OAuthProvider = 'facebook' | 'google' | 'linkedin' | 'tiktok' | 'x' | 'reddit'
 
 const OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000
 const encoder = new TextEncoder()
@@ -7,6 +7,7 @@ const decoder = new TextDecoder()
 interface OAuthStatePayload {
   brandId: string | null
   provider: OAuthProvider
+  subject: string | null
   ts: number
   nonce: string
   sig: string
@@ -15,6 +16,7 @@ interface OAuthStatePayload {
 export interface VerifiedOAuthState {
   brandId: string | null
   provider: OAuthProvider
+  subject: string | null
   ts: number
   nonce: string
 }
@@ -54,6 +56,7 @@ function canonicalState(payload: UnsignedOAuthState): string {
   return JSON.stringify({
     brandId: payload.brandId,
     provider: payload.provider,
+    subject: payload.subject,
     ts: payload.ts,
     nonce: payload.nonce,
   })
@@ -61,7 +64,8 @@ function canonicalState(payload: UnsignedOAuthState): string {
 
 export async function createOAuthState(
   brandId: string | null | undefined,
-  provider: OAuthProvider
+  provider: OAuthProvider,
+  subject?: string | null
 ): Promise<string> {
   const secret = getSecret()
   if (!secret) throw new Error('AUTH_SECRET is not configured')
@@ -72,6 +76,7 @@ export async function createOAuthState(
   const unsigned: UnsignedOAuthState = {
     brandId: brandId || null,
     provider,
+    subject: subject?.trim() || null,
     ts: Date.now(),
     nonce: bytesToBase64Url(nonceBytes),
   }
@@ -106,9 +111,14 @@ export async function verifyOAuthState(
     const brandIdIsValid =
       payload.brandId === null ||
       (typeof payload.brandId === 'string' && payload.brandId.length > 0)
+    const subjectIsValid =
+      payload.subject === null ||
+      payload.subject === undefined ||
+      (typeof payload.subject === 'string' && payload.subject.length > 0)
 
     if (
       !brandIdIsValid ||
+      !subjectIsValid ||
       payload.provider !== expectedProvider ||
       typeof payload.ts !== 'number' ||
       typeof payload.nonce !== 'string' ||
@@ -125,6 +135,7 @@ export async function verifyOAuthState(
     const unsigned: UnsignedOAuthState = {
       brandId: payload.brandId ?? null,
       provider: payload.provider,
+      subject: payload.subject ?? null,
       ts: payload.ts,
       nonce: payload.nonce,
     }
