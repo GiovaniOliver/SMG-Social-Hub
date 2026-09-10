@@ -31,6 +31,18 @@ const CONNECTORS = [
     href: '/api/oauth/tiktok',
     platforms: 'TikTok',
   },
+  {
+    name: 'X',
+    description: 'Authorize an existing X account through Arcade for posting and identity lookup.',
+    href: '/api/oauth/x',
+    platforms: 'X / Twitter',
+  },
+  {
+    name: 'Reddit',
+    description: 'Authorize an existing Reddit account through Arcade for posting and engagement.',
+    href: '/api/oauth/reddit',
+    platforms: 'Reddit',
+  },
 ]
 
 function statusClasses(status: SocialAccountRow['connectionStatus']) {
@@ -107,9 +119,9 @@ export default async function AccountsPage({
       <section>
         <div className="mb-3">
           <h2 className="text-sm font-semibold text-white">Connect provider</h2>
-          <p className="text-xs text-slate-500 mt-1">A provider authorization can discover one or more publishing identities.</p>
+          <p className="text-xs text-slate-500 mt-1">A provider authorization can discover one or more publishing identities. You can repeat a provider connection to add another account.</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {CONNECTORS.map((connector) => (
             <div key={connector.name} className="card flex flex-col gap-3">
               <div>
@@ -123,9 +135,6 @@ export default async function AccountsPage({
             </div>
           ))}
         </div>
-        <p className="text-xs text-slate-500 mt-3">
-          X/Twitter and Reddit remain available for manual inventory while their Arcade-based connection path is audited.
-        </p>
       </section>
 
       <section>
