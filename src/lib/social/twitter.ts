@@ -1,90 +1,64 @@
 import type { PublishParams, PublishResult } from './types'
+import { executeArcadeTool, getArcadeExecutionValue } from '@/lib/arcade'
 
-const ARCADE_BASE_URL = process.env.ARCADE_BASE_URL || 'https://api.arcade.dev/v1'
-const TOOL_NAME = 'Twitter.CreatePost'
+const TOOL_NAME = 'X.PostTweet'
 
-interface ArcadeRunResponse {
-  status?: string
-  output?: Record<string, unknown>
-  authorization?: {
-    url?: string
-  }
-  error?: string
+function recordOf(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return value as Record<string, unknown>
 }
 
 export async function publishToTwitter(
   params: PublishParams & { arcadeApiKey: string; userId: string },
 ): Promise<PublishResult> {
   if (!params.arcadeApiKey?.trim()) {
-    return { success: false, error: 'Arcade API key is required for Twitter publishing.' }
+    return { success: false, error: 'Arcade API key is required for X publishing.' }
   }
 
   if (!params.userId?.trim()) {
-    return { success: false, error: 'User ID is required for Twitter publishing via Arcade.' }
+    return { success: false, error: 'Arcade user ID is required for X publishing.' }
   }
 
   if (!params.content?.trim()) {
-    return { success: false, error: 'Tweet content cannot be empty.' }
+    return { success: false, error: 'Post content cannot be empty.' }
   }
 
-  const endpoint = `${ARCADE_BASE_URL}/tools/${TOOL_NAME}/run`
-
-  let response: Response
   try {
-    response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${params.arcadeApiKey}`,
-      },
-      body: JSON.stringify({
-        tool_name: TOOL_NAME,
-        input: { tweet: params.content },
-        user_id: params.userId,
-      }),
+    const execution = await executeArcadeTool({
+      toolName: TOOL_NAME,
+      userId: params.userId,
+      toolInput: { text: params.content },
     })
-  } catch (networkError) {
+
+    const auth = execution.output?.authorization
+    if (auth?.status !== 'completed' && auth?.url) {
+      return {
+        success: false,
+        requiresAuth: true,
+        authUrl: auth.url,
+        error: 'X authorization needs to be completed before publishing.',
+      }
+    }
+
+    const value = getArcadeExecutionValue(execution)
+    const record = recordOf(value)
+    const nested = recordOf(record?.data)
+    const source = nested || record
+
+    const postId =
+      (typeof source?.tweet_id === 'string' && source.tweet_id) ||
+      (typeof source?.id === 'string' && source.id) ||
+      undefined
+    const postUrl =
+      (typeof source?.tweet_url === 'string' && source.tweet_url) ||
+      (typeof source?.url === 'string' && source.url) ||
+      undefined
+
+    return { success: true, postId, postUrl }
+  } catch (error) {
     return {
       success: false,
-      error: `Network error reaching Arcade API: ${networkError instanceof Error ? networkError.message : String(networkError)}`,
+      error: error instanceof Error ? error.message : 'Arcade X publishing failed.',
     }
-  }
-
-  let data: ArcadeRunResponse
-  try {
-    data = (await response.json()) as ArcadeRunResponse
-  } catch {
-    return {
-      success: false,
-      error: `Arcade API returned an unparseable response (HTTP ${response.status}).`,
-    }
-  }
-
-  // Auth required — user must authorize via Arcade
-  const authUrl = data.authorization?.url
-  if (authUrl) {
-    return {
-      success: false,
-      requiresAuth: true,
-      authUrl,
-      error: 'Twitter authorization required. Redirect the user to the authUrl to connect their account.',
-    }
-  }
-
-  if (!response.ok || data.status === 'error') {
-    return {
-      success: false,
-      error: data.error || `Arcade Twitter.CreatePost failed with HTTP ${response.status}.`,
-    }
-  }
-
-  const tweetId =
-    (typeof data.output?.tweet_id === 'string' && data.output.tweet_id) ||
-    (typeof data.output?.id === 'string' && data.output.id) ||
-    ''
-
-  return {
-    success: true,
-    postId: tweetId || undefined,
   }
 }
