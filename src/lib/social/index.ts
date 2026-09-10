@@ -95,7 +95,7 @@ async function dispatchToPlatform(
       if (!params.userId) {
         return {
           success: false,
-          error: 'userId is required for Twitter publishing via Arcade.',
+          error: 'No Arcade identity is associated with this X connection.',
         }
       }
       return publishToTwitter({
@@ -114,7 +114,7 @@ async function dispatchToPlatform(
       if (!params.userId) {
         return {
           success: false,
-          error: 'userId is required for Reddit publishing via Arcade.',
+          error: 'No Arcade identity is associated with this Reddit connection.',
         }
       }
       return publishToReddit({
@@ -164,7 +164,7 @@ export async function publishPost(
       if (!connection) {
         results[platform] = {
           success: false,
-          error: `No ${platform} connection found for brand ${params.brandId}. Connect the account first in Social Hub.`,
+          error: `No ${platform} connection found for brand ${params.brandId}. Connect and assign the account first in Social Hub.`,
         }
         return
       }
@@ -196,6 +196,11 @@ export async function publishPost(
         return
       }
 
+      const arcadeUserId =
+        platform === 'TWITTER' || platform === 'REDDIT'
+          ? connection.accountId || params.userId
+          : params.userId
+
       const result = await dispatchToPlatform(platform, {
         content: params.content,
         mediaUrls: params.mediaUrls,
@@ -203,7 +208,7 @@ export async function publishPost(
         subreddit: params.subreddit,
         accessToken,
         accountId: connection.accountId,
-        userId: params.userId,
+        userId: arcadeUserId || undefined,
       })
 
       results[platform] = result
