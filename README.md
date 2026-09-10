@@ -1,6 +1,29 @@
 # SMG Social Hub
 
-Multi-brand social media management: schedule posts + AI-assisted comment engagement.
+Social media account management, content creation, scheduling, publishing, campaigns, and AI-assisted engagement for Socialtize Marketing Group.
+
+## Account-first connection architecture
+
+Social accounts are inventoried before they are assigned to brands or future creator/UGC profiles.
+
+- `/accounts` is the primary social connection surface.
+- Provider credentials live in `social_hub_platform_connections` and are encrypted at rest by the application.
+- Individual publishing identities live in `social_hub_accounts`.
+- A provider connection may expose multiple identities.
+- Brand ownership is optional during account onboarding.
+- Manual accounts can be registered for identities a provider API does not expose for automated publishing.
+- Connection health distinguishes connected, reauthorization-needed, disconnected, and error states.
+- Publishing capability distinguishes automatic, manual, read-only, and unsupported identities.
+
+### Current provider discovery
+
+- **Meta:** imports every Facebook Page returned by the authorized Meta account and linked Instagram professional accounts. The Facebook login identity is inventoried separately. Additional Facebook profiles can be registered manually when they are not exposed as supported publishing identities by the provider API.
+- **YouTube / Google:** discovers the authorized YouTube channel and registers the Google identity if no channel is returned.
+- **LinkedIn:** registers the authorized LinkedIn member identity.
+- **TikTok:** registers the authorized TikTok profile.
+- **X / Twitter and Reddit:** can be inventoried manually while the Arcade-based connection path is audited for the account registry.
+
+The legacy `/connect` route redirects to `/accounts`.
 
 ## Database architecture
 
@@ -12,8 +35,9 @@ SMG Social Hub uses the same Supabase project as the main Socialtize Marketing G
 - **RLS:** enabled on every `social_hub_*` table
 - **Server access:** a Supabase server secret/service-role credential is required because `anon` and `authenticated` do not have direct table privileges
 
-Current Social Hub tables:
+Current Social Hub tables include:
 
+- `social_hub_accounts`
 - `social_hub_brands`
 - `social_hub_platform_connections`
 - `social_hub_scheduled_posts`
@@ -30,40 +54,41 @@ Current Social Hub tables:
 1. Copy `.env.example` to `.env.local`.
 2. Set `SUPABASE_URL` to the SMG Supabase project URL.
 3. Set `SUPABASE_SECRET_KEY` to a server-only Supabase secret key. The legacy `SUPABASE_SERVICE_ROLE_KEY` name is also accepted as a fallback.
-4. Add the remaining authentication, encryption, AI, and OAuth variables you need.
+4. Add the authentication, token-encryption, AI, and provider OAuth variables needed for your environment.
 5. Run `npm install`.
 6. Run `npm run dev`.
 
-> Never commit `.env`, `.env.local`, database credentials, OAuth secrets, or API keys. Vercel production secrets belong in Project Settings → Environment Variables.
+> Never commit `.env`, `.env.local`, database credentials, OAuth secrets, access tokens, refresh tokens, or API keys. Vercel production secrets belong in Project Settings → Environment Variables.
 
-## Environment Variables
+## Environment variables
 
 | Variable | Required | Description |
-|----------|----------|-------------|
-| `SUPABASE_URL` | Yes | Supabase project URL, e.g. `https://PROJECT_REF.supabase.co` |
-| `SUPABASE_SECRET_KEY` | Yes | Server-only Supabase secret key used for Social Hub database access |
-| `SUPABASE_SERVICE_ROLE_KEY` | Fallback | Legacy server/service-role key name supported when `SUPABASE_SECRET_KEY` is not set |
-| `ANTHROPIC_API_KEY` | Yes for AI | Anthropic API key for AI generation/reply workflows |
-| `TOKEN_ENCRYPTION_KEY` | Yes | 32-character secret used for token encryption |
-| `AUTH_SECRET` | Yes | Random secret used to sign the operator session cookie |
+|---|---|---|
+| `SUPABASE_URL` | Yes | Supabase project URL |
+| `SUPABASE_SECRET_KEY` | Yes | Server-only Supabase secret key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Fallback | Legacy server/service-role key name |
+| `TOKEN_ENCRYPTION_KEY` | Yes | 32-character secret used to encrypt provider tokens |
+| `AUTH_SECRET` | Yes | Secret used for operator authentication and signed OAuth state |
 | `APP_PASSWORD` | Yes | Shared operator login password |
-| `CRON_SECRET` | Yes | Secret required by the cron endpoint |
-| `FACEBOOK_APP_ID` | Optional | Facebook OAuth App ID |
-| `FACEBOOK_APP_SECRET` | Optional | Facebook OAuth App Secret |
-| `FACEBOOK_REDIRECT_URI` | Optional | Production Facebook OAuth callback |
-| `ARCADE_API_KEY` | Optional | Arcade API key for supported social integrations |
-| `ARCADE_BASE_URL` | Optional | Arcade API base URL |
-| `LINKEDIN_CLIENT_ID` | Optional | LinkedIn client ID |
-| `LINKEDIN_CLIENT_SECRET` | Optional | LinkedIn client secret |
-| `LINKEDIN_REDIRECT_URI` | Optional | LinkedIn OAuth callback |
-| `TIKTOK_CLIENT_KEY` | Optional | TikTok client key |
-| `TIKTOK_CLIENT_SECRET` | Optional | TikTok client secret |
-| `TIKTOK_REDIRECT_URI` | Optional | TikTok OAuth callback |
-| `GOOGLE_CLIENT_ID` | Optional | Google/YouTube OAuth client ID |
-| `GOOGLE_CLIENT_SECRET` | Optional | Google/YouTube OAuth client secret |
-| `GOOGLE_REDIRECT_URI` | Optional | Google OAuth callback |
-| `NEXT_PUBLIC_APP_URL` | Yes in production | Public application URL |
-| `NEXT_PUBLIC_BASE_URL` | Yes in production | Public base URL used by callbacks |
+| `CRON_SECRET` | Yes for cron | Secret required by the cron endpoint |
+| `ANTHROPIC_API_KEY` | Yes for AI | Anthropic API key for AI generation/reply workflows |
+| `FACEBOOK_APP_ID` | Meta | Meta/Facebook application ID |
+| `FACEBOOK_APP_SECRET` | Meta | Meta/Facebook application secret |
+| `FACEBOOK_REDIRECT_URI` | Meta | Meta OAuth callback |
+| `META_GRAPH_VERSION` | Optional | Meta Graph API version override; defaults to `v26.0` |
+| `LINKEDIN_CLIENT_ID` | LinkedIn | LinkedIn client ID |
+| `LINKEDIN_CLIENT_SECRET` | LinkedIn | LinkedIn client secret |
+| `LINKEDIN_REDIRECT_URI` | LinkedIn | LinkedIn OAuth callback |
+| `TIKTOK_CLIENT_KEY` | TikTok | TikTok client key |
+| `TIKTOK_CLIENT_SECRET` | TikTok | TikTok client secret |
+| `TIKTOK_REDIRECT_URI` | TikTok | TikTok OAuth callback |
+| `GOOGLE_CLIENT_ID` | YouTube | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | YouTube | Google OAuth client secret |
+| `GOOGLE_REDIRECT_URI` | YouTube | Google OAuth callback |
+| `ARCADE_API_KEY` | X/Reddit | Arcade API key |
+| `ARCADE_BASE_URL` | X/Reddit | Arcade API base URL |
+| `NEXT_PUBLIC_APP_URL` | Production | Public application URL |
+| `NEXT_PUBLIC_BASE_URL` | Production | Public base URL used by callbacks |
 
 ### Production Supabase format
 
@@ -72,9 +97,9 @@ SUPABASE_URL=https://kicfnilhwenaditbgcxh.supabase.co
 SUPABASE_SECRET_KEY=<server-only-secret>
 ```
 
-Do not prefix the server secret with `NEXT_PUBLIC_` and do not expose it to browser code.
+Do not prefix the server secret with `NEXT_PUBLIC_`.
 
-### Production URLs
+### Production callback URLs
 
 ```text
 NEXT_PUBLIC_APP_URL=https://social.socialtizemg.com
@@ -84,6 +109,22 @@ LINKEDIN_REDIRECT_URI=https://social.socialtizemg.com/api/oauth/linkedin/callbac
 TIKTOK_REDIRECT_URI=https://social.socialtizemg.com/api/oauth/tiktok/callback
 GOOGLE_REDIRECT_URI=https://social.socialtizemg.com/api/oauth/google/callback
 ```
+
+OAuth state is HMAC-signed with `AUTH_SECRET`, provider-bound, and expires after ten minutes.
+
+## Account registry API
+
+```text
+GET /api/accounts
+POST /api/accounts
+DELETE /api/accounts?id=<account-id>
+```
+
+Manual account registration stores identity metadata only; it does not store a social-media password.
+
+## Existing content workflow
+
+Social Hub also includes Content Lab, campaigns, calendar, library, scheduling, queue management, comment engagement, and platform publishing routes. Brand assignment remains available for existing content workflows, but new social-account onboarding no longer requires a brand.
 
 ## Seed initial data
 
@@ -98,19 +139,7 @@ POST http://localhost:3000/api/comments/pre-load
 Body: { "brandId": "<brand-id>" }
 ```
 
-## Platforms
-
-| Platform | Post | Read Comments | Reply |
-|----------|------|---------------|-------|
-| Facebook Pages | Yes — Graph API | Yes | Yes — Owned pages |
-| Instagram Business | Yes — Graph API | Yes | Yes — Owned |
-| Twitter/X | Yes — Arcade | Yes — Arcade | Yes — Arcade |
-| LinkedIn | Yes — Direct API | Yes | Yes |
-| TikTok | Yes — Content API | Yes — Research API | Limited |
-| YouTube | File upload only | Yes — Data API | Yes |
-| Reddit | Yes — Arcade | Yes — Public API | Yes — Arcade |
-
-## AI Reply Generation
+## AI reply generation
 
 Powered by `claude-haiku-4-5-20251001`.
 
@@ -126,12 +155,14 @@ Powered by `claude-haiku-4-5-20251001`.
 src/
   app/
     (dashboard)/
+      accounts/           # Account inventory and provider connection entry points
       comments/
       brands/
       campaigns/
       schedule/
       queue/
     api/
+      accounts/
       comments/
       brands/
       campaigns/
@@ -143,5 +174,8 @@ src/
     ai/
     comments/
     social/
+    social-accounts.ts    # Account registry + provider connection data layer
     db.ts                 # Supabase-backed server database adapter
+supabase/
+  migrations/             # Source-controlled Social Hub schema changes
 ```
