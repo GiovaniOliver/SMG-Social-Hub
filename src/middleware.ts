@@ -15,6 +15,8 @@ const OAUTH_CALLBACKS = new Map<string, OAuthProvider>([
   ['/api/oauth/google/callback', 'google'],
   ['/api/oauth/linkedin/callback', 'linkedin'],
   ['/api/oauth/tiktok/callback', 'tiktok'],
+  ['/api/oauth/x/callback', 'x'],
+  ['/api/oauth/reddit/callback', 'reddit'],
 ])
 
 function oauthStateError(request: NextRequest): NextResponse {
