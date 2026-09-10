@@ -5,10 +5,6 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const brandId = searchParams.get('brandId')
 
-  if (!brandId) {
-    return Response.json({ success: false, error: 'brandId is required' }, { status: 400 })
-  }
-
   const clientId = process.env.GOOGLE_CLIENT_ID
   const redirectUri = process.env.GOOGLE_REDIRECT_URI
 
@@ -38,7 +34,5 @@ export async function GET(request: NextRequest) {
     state,
   })
 
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
-
-  return Response.redirect(authUrl)
+  return Response.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`)
 }

@@ -5,10 +5,6 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const brandId = searchParams.get('brandId')
 
-  if (!brandId) {
-    return Response.json({ success: false, error: 'brandId is required' }, { status: 400 })
-  }
-
   const appId = process.env.FACEBOOK_APP_ID
   const redirectUri = process.env.FACEBOOK_REDIRECT_URI
 
@@ -22,13 +18,13 @@ export async function GET(request: NextRequest) {
   const scopes = [
     'pages_manage_posts',
     'pages_read_engagement',
+    'pages_show_list',
     'instagram_basic',
     'instagram_content_publish',
-    'pages_show_list',
-    'business_management',
   ].join(',')
 
   const state = await createOAuthState(brandId, 'facebook')
+  const graphVersion = process.env.META_GRAPH_VERSION || 'v26.0'
 
   const params = new URLSearchParams({
     client_id: appId,
@@ -38,7 +34,5 @@ export async function GET(request: NextRequest) {
     state,
   })
 
-  const authUrl = `https://www.facebook.com/v21.0/dialog/oauth?${params.toString()}`
-
-  return Response.redirect(authUrl)
+  return Response.redirect(`https://www.facebook.com/${graphVersion}/dialog/oauth?${params.toString()}`)
 }

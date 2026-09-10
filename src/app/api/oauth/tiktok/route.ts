@@ -5,10 +5,6 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const brandId = searchParams.get('brandId')
 
-  if (!brandId) {
-    return Response.json({ success: false, error: 'brandId is required' }, { status: 400 })
-  }
-
   const clientKey = process.env.TIKTOK_CLIENT_KEY
   const redirectUri = process.env.TIKTOK_REDIRECT_URI
 
@@ -19,12 +15,7 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const scopes = [
-    'user.info.basic',
-    'video.publish',
-    'video.upload',
-  ].join(',')
-
+  const scopes = ['user.info.basic', 'video.publish', 'video.upload'].join(',')
   const state = await createOAuthState(brandId, 'tiktok')
 
   const params = new URLSearchParams({
@@ -35,7 +26,5 @@ export async function GET(request: NextRequest) {
     state,
   })
 
-  const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`
-
-  return Response.redirect(authUrl)
+  return Response.redirect(`https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`)
 }

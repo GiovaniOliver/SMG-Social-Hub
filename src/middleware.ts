@@ -18,7 +18,7 @@ const OAUTH_CALLBACKS = new Map<string, OAuthProvider>([
 ])
 
 function oauthStateError(request: NextRequest): NextResponse {
-  const url = new URL('/connect', request.url)
+  const url = new URL('/accounts', request.url)
   url.searchParams.set('error', 'Invalid or expired OAuth state')
   return NextResponse.redirect(url)
 }

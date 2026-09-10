@@ -5,19 +5,21 @@ const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 
 interface OAuthStatePayload {
-  brandId: string
+  brandId: string | null
   provider: OAuthProvider
   ts: number
   nonce: string
   sig: string
 }
 
-interface UnsignedOAuthState {
-  brandId: string
+export interface VerifiedOAuthState {
+  brandId: string | null
   provider: OAuthProvider
   ts: number
   nonce: string
 }
+
+type UnsignedOAuthState = VerifiedOAuthState
 
 function getSecret(): string | null {
   const secret = process.env.AUTH_SECRET
@@ -58,7 +60,7 @@ function canonicalState(payload: UnsignedOAuthState): string {
 }
 
 export async function createOAuthState(
-  brandId: string,
+  brandId: string | null | undefined,
   provider: OAuthProvider
 ): Promise<string> {
   const secret = getSecret()
@@ -68,7 +70,7 @@ export async function createOAuthState(
   crypto.getRandomValues(nonceBytes)
 
   const unsigned: UnsignedOAuthState = {
-    brandId,
+    brandId: brandId || null,
     provider,
     ts: Date.now(),
     nonce: bytesToBase64Url(nonceBytes),
@@ -92,7 +94,7 @@ export async function createOAuthState(
 export async function verifyOAuthState(
   state: string | null | undefined,
   expectedProvider: OAuthProvider
-): Promise<UnsignedOAuthState | null> {
+): Promise<VerifiedOAuthState | null> {
   const secret = getSecret()
   if (!secret || !state) return null
 
@@ -101,9 +103,12 @@ export async function verifyOAuthState(
       decoder.decode(base64UrlToBytes(state))
     ) as Partial<OAuthStatePayload>
 
+    const brandIdIsValid =
+      payload.brandId === null ||
+      (typeof payload.brandId === 'string' && payload.brandId.length > 0)
+
     if (
-      typeof payload.brandId !== 'string' ||
-      payload.brandId.length === 0 ||
+      !brandIdIsValid ||
       payload.provider !== expectedProvider ||
       typeof payload.ts !== 'number' ||
       typeof payload.nonce !== 'string' ||
@@ -118,7 +123,7 @@ export async function verifyOAuthState(
     if (age < 0 || age > OAUTH_STATE_MAX_AGE_MS) return null
 
     const unsigned: UnsignedOAuthState = {
-      brandId: payload.brandId,
+      brandId: payload.brandId ?? null,
       provider: payload.provider,
       ts: payload.ts,
       nonce: payload.nonce,

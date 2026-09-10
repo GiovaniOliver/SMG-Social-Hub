@@ -12,7 +12,7 @@ import {
   CalendarPlus,
   ClipboardList,
   MessageSquare,
-  Link2,
+  UsersRound,
   Building2,
   Settings,
   LogOut,
@@ -21,6 +21,7 @@ import clsx from 'clsx'
 
 const NAV_ITEMS = [
   { href: '/', label: 'Overview', icon: LayoutDashboard },
+  { href: '/accounts', label: 'Accounts', icon: UsersRound },
   { href: '/create', label: 'Content Lab', icon: Sparkles },
   { href: '/campaigns', label: 'Campaigns', icon: Rocket },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
@@ -29,7 +30,6 @@ const NAV_ITEMS = [
   { href: '/queue', label: 'Queue', icon: ClipboardList },
   { href: '/comments', label: 'Comments', icon: MessageSquare },
   { href: '/brands', label: 'Brands', icon: Building2 },
-  { href: '/connect', label: 'Connect', icon: Link2 },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
