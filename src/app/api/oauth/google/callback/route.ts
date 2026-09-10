@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
-import { prisma } from '@/lib/db'
-import { encrypt } from '@/lib/crypto'
+import { verifyOAuthState } from '@/lib/security/oauth-state'
+import { upsertProviderConnection, upsertSocialAccount } from '@/lib/social-accounts'
 
 interface GoogleTokenResponse {
   access_token: string
@@ -8,16 +8,13 @@ interface GoogleTokenResponse {
   refresh_token?: string
   scope: string
   token_type: string
-  id_token?: string
 }
 
 interface GoogleUserInfo {
   sub: string
   name: string
-  given_name: string
-  family_name: string
-  email: string
-  picture: string
+  email?: string
+  picture?: string
 }
 
 interface YouTubeChannelResponse {
@@ -26,6 +23,12 @@ interface YouTubeChannelResponse {
     snippet: {
       title: string
       description: string
+      customUrl?: string
+      thumbnails?: {
+        default?: { url?: string }
+        medium?: { url?: string }
+        high?: { url?: string }
+      }
     }
   }>
 }
@@ -48,130 +51,109 @@ async function exchangeCodeForToken(
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
+    cache: 'no-store',
   })
-
-  if (!res.ok) {
-    const error = await res.text()
-    throw new Error(`Google token exchange failed: ${error}`)
-  }
-
+  if (!res.ok) throw new Error(`Google token exchange failed (${res.status})`)
   return res.json()
 }
 
 async function getUserInfo(accessToken: string): Promise<GoogleUserInfo> {
   const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
     headers: { Authorization: `Bearer ${accessToken}` },
+    cache: 'no-store',
   })
-
-  if (!res.ok) {
-    const error = await res.text()
-    throw new Error(`Failed to fetch Google user info: ${error}`)
-  }
-
+  if (!res.ok) throw new Error(`Google user discovery failed (${res.status})`)
   return res.json()
 }
 
 async function getYouTubeChannel(accessToken: string): Promise<YouTubeChannelResponse> {
   const res = await fetch(
     'https://www.googleapis.com/youtube/v3/channels?part=snippet&mine=true',
-    {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }
+    { headers: { Authorization: `Bearer ${accessToken}` }, cache: 'no-store' }
   )
-
-  if (!res.ok) {
-    const error = await res.text()
-    throw new Error(`Failed to fetch YouTube channel: ${error}`)
-  }
-
+  if (!res.ok) throw new Error(`YouTube channel discovery failed (${res.status})`)
   return res.json()
 }
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
-  const state = searchParams.get('state')
+  const stateValue = searchParams.get('state')
   const errorParam = searchParams.get('error')
-
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
   if (errorParam) {
-    return Response.redirect(
-      `${appUrl}/connect?error=${encodeURIComponent('Google OAuth was denied')}`
-    )
+    return Response.redirect(`${appUrl}/accounts?error=${encodeURIComponent('Google authorization was denied')}`)
+  }
+  if (!code || !stateValue) {
+    return Response.redirect(`${appUrl}/accounts?error=Missing+code+or+state`)
   }
 
-  if (!code || !state) {
-    return Response.redirect(`${appUrl}/connect?error=Missing+code+or+state`)
-  }
-
-  let brandId: string
-  try {
-    const decoded = JSON.parse(Buffer.from(state, 'base64url').toString())
-    brandId = decoded.brandId
-    if (!brandId) throw new Error('No brandId in state')
-  } catch {
-    return Response.redirect(`${appUrl}/connect?error=Invalid+state+parameter`)
+  const state = await verifyOAuthState(stateValue, 'google')
+  if (!state) {
+    return Response.redirect(`${appUrl}/accounts?error=Invalid+or+expired+OAuth+state`)
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
   const redirectUri = process.env.GOOGLE_REDIRECT_URI
-
   if (!clientId || !clientSecret || !redirectUri) {
-    return Response.redirect(`${appUrl}/connect?error=Google+OAuth+not+configured`)
+    return Response.redirect(`${appUrl}/accounts?error=Google+OAuth+not+configured`)
   }
 
   try {
     const tokenData = await exchangeCodeForToken(code, clientId, clientSecret, redirectUri)
     const userInfo = await getUserInfo(tokenData.access_token)
-
-    let channelTitle = userInfo.name
-    let channelId = userInfo.sub
-
-    try {
-      const channelData = await getYouTubeChannel(tokenData.access_token)
-      if (channelData.items.length > 0) {
-        channelTitle = channelData.items[0].snippet.title
-        channelId = channelData.items[0].id
-      }
-    } catch {
-      // YouTube channel fetch is optional — fall back to Google account name
-    }
-
+    const channelData = await getYouTubeChannel(tokenData.access_token)
+    const channel = channelData.items[0]
     const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000)
+    const scopes = tokenData.scope.split(' ').filter(Boolean)
 
-    await prisma.platformConnection.upsert({
-      where: { brandId_platform: { brandId, platform: 'YOUTUBE' } },
-      create: {
-        brandId,
-        platform: 'YOUTUBE',
-        accountId: channelId,
-        accountLabel: channelTitle,
-        accessToken: encrypt(tokenData.access_token),
-        refreshToken: tokenData.refresh_token ? encrypt(tokenData.refresh_token) : null,
-        expiresAt,
-        scopes: JSON.stringify(tokenData.scope.split(' ')),
-        isActive: true,
+    const accountId = channel?.id || `google-user:${userInfo.sub}`
+    const accountLabel = channel?.snippet.title || userInfo.name || userInfo.email || 'Google Account'
+    const connection = await upsertProviderConnection({
+      platform: 'YOUTUBE',
+      accountId,
+      accountLabel,
+      accessToken: tokenData.access_token,
+      refreshToken: tokenData.refresh_token || null,
+      expiresAt,
+      scopes,
+    })
+
+    const avatarUrl =
+      channel?.snippet.thumbnails?.high?.url ||
+      channel?.snippet.thumbnails?.medium?.url ||
+      channel?.snippet.thumbnails?.default?.url ||
+      userInfo.picture ||
+      null
+
+    await upsertSocialAccount({
+      providerConnectionId: connection.id,
+      platform: 'YOUTUBE',
+      accountType: channel ? 'CHANNEL' : 'GOOGLE_ACCOUNT',
+      externalAccountId: channel?.id || accountId,
+      displayName: accountLabel,
+      handle: channel?.snippet.customUrl || null,
+      profileUrl: channel ? `https://www.youtube.com/channel/${channel.id}` : null,
+      avatarUrl,
+      publishingCapability: channel && scopes.includes('https://www.googleapis.com/auth/youtube.upload') ? 'AUTOMATIC' : 'READ_ONLY',
+      connectionStatus: 'CONNECTED',
+      metadata: {
+        source: 'google_oauth',
+        googleUserId: userInfo.sub,
+        googleEmail: userInfo.email || null,
       },
-      update: {
-        accountId: channelId,
-        accountLabel: channelTitle,
-        accessToken: encrypt(tokenData.access_token),
-        refreshToken: tokenData.refresh_token ? encrypt(tokenData.refresh_token) : null,
-        expiresAt,
-        scopes: JSON.stringify(tokenData.scope.split(' ')),
-        isActive: true,
-      },
+      lastVerifiedAt: new Date(),
     })
 
     return Response.redirect(
-      `${appUrl}/connect?success=${encodeURIComponent('YouTube connected successfully')}&brandId=${brandId}`
+      `${appUrl}/accounts?success=${encodeURIComponent(channel ? `YouTube channel ${accountLabel} connected` : 'Google account connected; no YouTube channel was returned')}`
     )
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Google OAuth failed'
+    console.error('[oauth:google]', error)
     return Response.redirect(
-      `${appUrl}/connect?error=${encodeURIComponent(message)}&brandId=${brandId}`
+      `${appUrl}/accounts?error=${encodeURIComponent('Google/YouTube connection failed. Check the OAuth configuration and try again.')}`
     )
   }
 }
