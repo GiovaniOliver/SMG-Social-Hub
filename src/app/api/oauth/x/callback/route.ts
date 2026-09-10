@@ -27,10 +27,11 @@ function stringField(record: Record<string, unknown> | null, ...keys: string[]):
 function normalizeXIdentity(value: unknown) {
   let raw = value
   if (typeof raw === 'string') {
+    const rawString = raw
     try {
-      raw = JSON.parse(raw)
+      raw = JSON.parse(rawString)
     } catch {
-      const username = raw.replace(/^@/, '').trim()
+      const username = rawString.replace(/^@/, '').trim()
       return {
         id: null,
         username,
@@ -48,8 +49,8 @@ function normalizeXIdentity(value: unknown) {
 
   const pick = (...keys: string[]) => {
     for (const candidate of candidates) {
-      const value = stringField(candidate, ...keys)
-      if (value) return value
+      const field = stringField(candidate, ...keys)
+      if (field) return field
     }
     return null
   }
