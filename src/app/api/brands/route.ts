@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import { getAllBrands } from '@/lib/brands'
 import { isValidLogoUrl } from '@/lib/uploads'
 
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       niche, audience, tone, goals, website, websiteContent, appStoreUrl, socialUrls,
     } = validated.data
 
-    const existing = await prisma.brand.findUnique({ where: { slug } })
+    const existing = await db.brand.findUnique({ where: { slug } })
     if (existing) {
       return Response.json(
         { success: false, error: `A brand with slug "${slug}" already exists` },
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const brand = await prisma.brand.create({
+    const brand = await db.brand.create({
       data: {
         name,
         slug,
