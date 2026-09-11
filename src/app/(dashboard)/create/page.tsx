@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   Sparkles,
   RefreshCw,
@@ -128,10 +129,15 @@ function ResultCard({ result, onSchedule }: ResultCardProps) {
 
           {/* Media */}
           {result.imageUrl && (
-            <img
+            <Image
               src={result.imageUrl}
               alt="Generated visual"
-              className="w-full rounded-lg border border-slate-700"
+              width={1200}
+              height={675}
+              sizes="(max-width: 640px) 100vw, 50vw"
+              unoptimized
+              loader={({ src }) => src}
+              className="w-full h-auto rounded-lg border border-slate-700"
             />
           )}
           {result.videoUrl && (
