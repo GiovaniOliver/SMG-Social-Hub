@@ -21,6 +21,15 @@ describe('OAuth state signing', () => {
     expect(verified?.provider).toBe('facebook')
   })
 
+  it('round-trips an account-first state without a brand', async () => {
+    const state = await createOAuthState(null, 'x', 'creator@example.com')
+    const verified = await verifyOAuthState(state, 'x')
+
+    expect(verified?.brandId).toBeNull()
+    expect(verified?.subject).toBe('creator@example.com')
+    expect(verified?.provider).toBe('x')
+  })
+
   it('rejects a state for a different provider', async () => {
     const state = await createOAuthState('brand-123', 'google')
     await expect(verifyOAuthState(state, 'linkedin')).resolves.toBeNull()
