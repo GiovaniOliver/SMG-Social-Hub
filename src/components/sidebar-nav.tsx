@@ -35,7 +35,7 @@ const NAV_ITEMS = [
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
-export function SidebarNav() {
+export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
   const [loggingOut, setLoggingOut] = useState(false)
@@ -45,13 +45,14 @@ export function SidebarNav() {
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
     } finally {
+      onNavigate?.()
       router.push('/login')
       router.refresh()
     }
   }
 
   return (
-    <nav className="flex flex-col gap-1 px-3">
+    <nav className="flex flex-col gap-1 px-3 pb-3">
       {NAV_ITEMS.map((item) => {
         const Icon = item.icon
         const isActive =
@@ -61,14 +62,15 @@ export function SidebarNav() {
           <Link
             key={item.href}
             href={item.href}
+            onClick={onNavigate}
             className={clsx(
-              'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',
+              'flex min-h-11 items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors',
               isActive
                 ? 'bg-blue-600 text-white'
-                : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                : 'text-slate-300 hover:text-white hover:bg-slate-700'
             )}
           >
-            <Icon size={18} strokeWidth={1.75} />
+            <Icon size={18} strokeWidth={1.75} className="flex-shrink-0" />
             {item.label}
           </Link>
         )
@@ -77,9 +79,9 @@ export function SidebarNav() {
       <button
         onClick={handleLogout}
         disabled={loggingOut}
-        className="mt-2 pt-2 border-t border-slate-800 flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700 transition-colors disabled:opacity-50"
+        className="mt-2 flex min-h-11 items-center gap-3 border-t border-slate-700 px-3 py-2.5 rounded-md text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700 transition-colors disabled:opacity-50"
       >
-        <LogOut size={18} strokeWidth={1.75} />
+        <LogOut size={18} strokeWidth={1.75} className="flex-shrink-0" />
         {loggingOut ? 'Signing out…' : 'Sign out'}
       </button>
     </nav>
