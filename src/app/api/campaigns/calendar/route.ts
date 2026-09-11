@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 
 export async function GET(req: NextRequest) {
   const brandId = req.nextUrl.searchParams.get('brandId')
@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: false, error: 'brandId is required' }, { status: 400 })
   }
   try {
-    const pieces = await prisma.contentPiece.findMany({
+    const pieces = await db.contentPiece.findMany({
       where: { brandId },
       orderBy: { day: 'asc' },
       include: { campaign: { select: { id: true, name: true } } },
