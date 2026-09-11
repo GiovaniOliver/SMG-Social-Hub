@@ -1,6 +1,6 @@
 # Account-First Social Connection Plan
 
-Status: account registry foundation complete; provider connection rollout in progress
+Status: account registry and provider connection implementation complete; real-account onboarding and verification in progress
 
 ## Goal
 
@@ -78,3 +78,21 @@ Each time an operator selects **Connect X** or **Connect Reddit**, Social Hub cr
 6. Future Arcade tool calls use that stored ID so publishing targets the same authorized account.
 
 This design supports connecting multiple X and Reddit accounts without Social Hub storing the providers' raw OAuth access or refresh tokens.
+
+
+## Connection health verification
+
+Every OAuth/Arcade-backed identity in `/accounts` has an on-demand **Verify connection** action.
+
+The verifier:
+
+- refuses to call a provider when the stored access-token expiry is already in the past,
+- checks the stored identity against the provider where an identity API is available,
+- verifies X with `X.WhoAmI` and Reddit with `Reddit.GetMyUsername` through the stored Arcade user identity,
+- classifies rejected/expired authorization as `NEEDS_REAUTH`,
+- classifies inactive or missing provider connections as `DISCONNECTED`,
+- stores successful verification time in `lastVerifiedAt`,
+- stores the latest verification attempt/result message in account metadata,
+- never returns decrypted provider credentials to the browser.
+
+This is intentionally an operator-triggered health check. Automatic refresh-token rotation and scheduled connection-health jobs remain separate follow-up work after the first real accounts have been connected and provider behavior is verified in production.
