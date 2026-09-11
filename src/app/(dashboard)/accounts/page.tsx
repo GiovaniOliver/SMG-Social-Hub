@@ -5,39 +5,46 @@ import { ExternalLink, Link2, ShieldCheck, ShieldAlert, CircleOff } from 'lucide
 import { listSocialAccounts, type SocialAccountRow } from '@/lib/social-accounts'
 import { PLATFORM_LABELS } from '@/types'
 import { ManualAccountForm } from './manual-account-form'
+import { getSocialProviderReadiness, type SocialProviderId } from '@/lib/social/provider-readiness'
 
 const CONNECTORS = [
   {
+    id: 'meta' as const,
     name: 'Meta',
     description: 'Import Facebook Pages and linked Instagram professional accounts.',
     href: '/api/oauth/facebook',
     platforms: 'Facebook + Instagram',
   },
   {
+    id: 'youtube' as const,
     name: 'YouTube',
     description: 'Connect the YouTube channel owned by a Google account.',
     href: '/api/oauth/google',
     platforms: 'YouTube',
   },
   {
+    id: 'linkedin' as const,
     name: 'LinkedIn',
     description: 'Connect a LinkedIn member publishing identity.',
     href: '/api/oauth/linkedin',
     platforms: 'LinkedIn',
   },
   {
+    id: 'tiktok' as const,
     name: 'TikTok',
     description: 'Connect a TikTok account for publishing workflows.',
     href: '/api/oauth/tiktok',
     platforms: 'TikTok',
   },
   {
+    id: 'x' as const,
     name: 'X',
     description: 'Authorize an existing X account through Arcade for posting and identity lookup.',
     href: '/api/oauth/x',
     platforms: 'X / Twitter',
   },
   {
+    id: 'reddit' as const,
     name: 'Reddit',
     description: 'Authorize an existing Reddit account through Arcade for posting and engagement.',
     href: '/api/oauth/reddit',
@@ -73,6 +80,10 @@ export default async function AccountsPage({
   } catch (err) {
     loadError = err instanceof Error ? err.message : 'Unable to load accounts'
   }
+
+  const providerReadiness = new Map<SocialProviderId, ReturnType<typeof getSocialProviderReadiness>[number]>(
+    getSocialProviderReadiness().map((item) => [item.id, item])
+  )
 
   const connected = accounts.filter((account) => account.connectionStatus === 'CONNECTED').length
   const automatic = accounts.filter((account) => account.publishingCapability === 'AUTOMATIC').length
@@ -122,18 +133,64 @@ export default async function AccountsPage({
           <p className="text-xs text-slate-500 mt-1">A provider authorization can discover one or more publishing identities. You can repeat a provider connection to add another account.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          {CONNECTORS.map((connector) => (
-            <div key={connector.name} className="card flex flex-col gap-3">
-              <div>
-                <p className="text-sm font-medium text-white">{connector.name}</p>
-                <p className="text-xs text-blue-300 mt-0.5">{connector.platforms}</p>
+          {CONNECTORS.map((connector) => {
+            const readiness = providerReadiness.get(connector.id)
+            const ready = readiness?.ready ?? false
+
+            return (
+              <div key={connector.name} className="card flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-white">{connector.name}</p>
+                    <p className="text-xs text-blue-300 mt-0.5">{connector.platforms}</p>
+                  </div>
+                  <span
+                    className={`text-[10px] uppercase tracking-wide px-2 py-1 rounded border ${
+                      ready
+                        ? 'text-green-300 bg-green-950/50 border-green-800'
+                        : 'text-amber-300 bg-amber-950/50 border-amber-800'
+                    }`}
+                  >
+                    {ready ? 'Ready' : 'Setup needed'}
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-400">{connector.description}</p>
+
+                {readiness && !ready && (
+                  <div className="rounded-lg border border-amber-900/70 bg-amber-950/20 px-3 py-2 space-y-1">
+                    {readiness.missing.length > 0 && (
+                      <p className="text-[11px] text-amber-300">
+                        Missing: {readiness.missing.join(', ')}
+                      </p>
+                    )}
+                    {readiness.warnings.map((warning) => (
+                      <p key={warning} className="text-[11px] text-amber-300">
+                        {warning}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                {readiness && (
+                  <div className="text-[11px] text-slate-500 space-y-1">
+                    <p>Auth: {readiness.authMethod === 'arcade' ? 'Arcade managed OAuth' : 'Direct OAuth'}</p>
+                    {readiness.callbackUrl && <p className="break-all">Callback: {readiness.callbackUrl}</p>}
+                  </div>
+                )}
+
+                {ready ? (
+                  <Link href={connector.href} className="btn-primary text-center flex items-center justify-center gap-2 mt-auto">
+                    <Link2 size={14} /> Connect
+                  </Link>
+                ) : (
+                  <button type="button" disabled className="btn-secondary opacity-50 cursor-not-allowed mt-auto">
+                    Configure provider first
+                  </button>
+                )}
               </div>
-              <p className="text-xs text-slate-400 flex-1">{connector.description}</p>
-              <Link href={connector.href} className="btn-primary text-center flex items-center justify-center gap-2">
-                <Link2 size={14} /> Connect
-              </Link>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </section>
 
