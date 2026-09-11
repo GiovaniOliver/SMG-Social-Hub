@@ -6,7 +6,7 @@ import type { ContentType } from '@/lib/ai/content-types'
 import { getBrandById } from '@/lib/brands'
 import { generateImage, generateVideo } from '@/lib/ai/media-providers'
 import { buildVisualPrompt } from '@/lib/ai/visual-prompt'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import type { Platform } from '@/types'
 import { PLATFORMS } from '@/types'
 
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     const successful = finalResults.filter((r) => r.content)
     if (successful.length > 0) {
       try {
-        await prisma.generatedContent.createMany({
+        await db.generatedContent.createMany({
           data: successful.map((r) => ({
             brandId,
             platform: r.platform,
