@@ -5,6 +5,7 @@ import { decrypt, encrypt } from '@/lib/crypto'
 
 export type IntegrationCategory = 'llm' | 'media' | 'local'
 export type IntegrationProvider = 'gemini' | 'anthropic' | 'openai' | 'ollama' | 'runware'
+export type DefaultAIProvider = 'gemini' | 'anthropic' | 'openai' | 'ollama'
 
 export interface StoredIntegration {
   provider: IntegrationProvider
@@ -110,4 +111,67 @@ export async function saveStoredIntegration(input: {
     .upsert(payload, { onConflict: 'provider' })
 
   if (error) throw new Error(`[ai-integrations:${input.provider}] ${error.message}`)
+}
+
+
+export async function getStoredDefaultProvider(): Promise<DefaultAIProvider | null> {
+  const supabase = getClient()
+  if (!supabase) return null
+
+  const { data, error } = await supabase
+    .from('social_hub_ai_integrations')
+    .select('provider,config')
+    .in('provider', ['gemini', 'anthropic', 'openai', 'ollama'])
+
+  if (error) throw new Error(`[ai-integrations:default] ${error.message}`)
+
+  const row = (data || []).find((item) => {
+    const config = (item.config ?? {}) as Record<string, unknown>
+    return config.isDefault === true
+  })
+
+  return row?.provider as DefaultAIProvider | null
+}
+
+export async function setStoredDefaultProvider(provider: DefaultAIProvider): Promise<void> {
+  const supabase = getClient()
+  if (!supabase) throw new Error('Supabase server credentials are required to save AI integrations')
+
+  const { data, error } = await supabase
+    .from('social_hub_ai_integrations')
+    .select('provider,category,config')
+    .in('provider', ['gemini', 'anthropic', 'openai', 'ollama'])
+
+  if (error) throw new Error(`[ai-integrations:default] ${error.message}`)
+
+  const rows = data || []
+  for (const row of rows) {
+    const config = {
+      ...((row.config ?? {}) as Record<string, unknown>),
+      isDefault: row.provider === provider,
+    }
+    const { error: updateError } = await supabase
+      .from('social_hub_ai_integrations')
+      .update({ config, updated_at: new Date().toISOString() })
+      .eq('provider', row.provider)
+
+    if (updateError) throw new Error(`[ai-integrations:default] ${updateError.message}`)
+  }
+
+  if (!rows.some((row) => row.provider === provider)) {
+    const { error: insertError } = await supabase
+      .from('social_hub_ai_integrations')
+      .upsert(
+        {
+          provider,
+          category: provider === 'ollama' ? 'local' : 'llm',
+          enabled: true,
+          config: { isDefault: true },
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'provider' }
+      )
+
+    if (insertError) throw new Error(`[ai-integrations:default] ${insertError.message}`)
+  }
 }
