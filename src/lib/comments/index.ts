@@ -264,7 +264,7 @@ async function scanTwitter(brandId: string): Promise<{ results: CommentFetchResu
   return { results, isOwned: false }
 }
 
-async function scanTikTok(_brandId: string): Promise<{ results: CommentFetchResult[]; isOwned: boolean }> {
+async function scanTikTok(): Promise<{ results: CommentFetchResult[]; isOwned: boolean }> {
   // TikTok requires an explicit videoId — not supportable as a generic scan.
   // Users should provide video URLs via additionalUrls.
   return { results: [], isOwned: true }
