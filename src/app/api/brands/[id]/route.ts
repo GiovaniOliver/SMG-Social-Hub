@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import { getBrandById } from '@/lib/brands'
 import { isValidLogoUrl } from '@/lib/uploads'
 
@@ -73,12 +73,12 @@ export async function PATCH(
 
     const { voice, context, goals, socialUrls, ...rest } = validated.data
 
-    const existing = await prisma.brand.findUnique({ where: { id } })
+    const existing = await db.brand.findUnique({ where: { id } })
     if (!existing) {
       return Response.json({ success: false, error: 'Brand not found' }, { status: 404 })
     }
 
-    const updated = await prisma.brand.update({
+    const updated = await db.brand.update({
       where: { id },
       data: {
         ...rest,
@@ -102,12 +102,12 @@ export async function DELETE(
 ) {
   const { id } = await params
   try {
-    const existing = await prisma.brand.findUnique({ where: { id } })
+    const existing = await db.brand.findUnique({ where: { id } })
     if (!existing) {
       return Response.json({ success: false, error: 'Brand not found' }, { status: 404 })
     }
 
-    await prisma.brand.delete({ where: { id } })
+    await db.brand.delete({ where: { id } })
     return Response.json({ success: true, data: { deleted: true } })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete brand'

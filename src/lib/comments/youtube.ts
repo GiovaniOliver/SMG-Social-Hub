@@ -2,24 +2,6 @@ import type { CommentFetchResult } from './types'
 
 const YOUTUBE_API_BASE = 'https://www.googleapis.com/youtube/v3'
 
-function extractVideoIdFromUrl(url: string): string | null {
-  // Handles: https://www.youtube.com/watch?v=VIDEO_ID
-  // https://youtu.be/VIDEO_ID
-  // https://www.youtube.com/shorts/VIDEO_ID
-  const patterns = [
-    /[?&]v=([^&#]+)/,
-    /youtu\.be\/([^?#]+)/,
-    /\/shorts\/([^?#]+)/,
-  ]
-
-  for (const pattern of patterns) {
-    const match = url.match(pattern)
-    if (match) return match[1]
-  }
-
-  return null
-}
-
 async function fetchYouTubeJson(url: string, accessToken: string): Promise<Record<string, unknown>> {
   const response = await fetch(url, {
     headers: {

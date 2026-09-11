@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -12,7 +12,7 @@ const UpdateSchema = z.object({
 export async function GET(_request: NextRequest, { params }: RouteContext) {
   const { id } = await params
   try {
-    const campaign = await prisma.campaign.findUnique({
+    const campaign = await db.campaign.findUnique({
       where: { id },
       include: { content: { orderBy: { day: 'asc' } } },
     })
@@ -37,11 +37,11 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         { status: 400 }
       )
     }
-    const existing = await prisma.campaign.findUnique({ where: { id } })
+    const existing = await db.campaign.findUnique({ where: { id } })
     if (!existing) {
       return NextResponse.json({ success: false, error: 'Campaign not found' }, { status: 404 })
     }
-    const updated = await prisma.campaign.update({ where: { id }, data: parsed.data })
+    const updated = await db.campaign.update({ where: { id }, data: parsed.data })
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update campaign'
@@ -52,11 +52,11 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 export async function DELETE(_request: NextRequest, { params }: RouteContext) {
   const { id } = await params
   try {
-    const existing = await prisma.campaign.findUnique({ where: { id } })
+    const existing = await db.campaign.findUnique({ where: { id } })
     if (!existing) {
       return NextResponse.json({ success: false, error: 'Campaign not found' }, { status: 404 })
     }
-    await prisma.campaign.delete({ where: { id } })
+    await db.campaign.delete({ where: { id } })
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete campaign'

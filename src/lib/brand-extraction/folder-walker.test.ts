@@ -123,7 +123,7 @@ describe('scanFolder', () => {
     readdirSync.mockReturnValue(['notes.txt', 'sneaky-link.txt'])
     readFileAsText.mockResolvedValue('notes')
 
-    const result = await scanFolder('/brand')
+    await scanFolder('/brand')
 
     expect(readFileAsText).toHaveBeenCalledTimes(1)
     expect(readFileAsText).toHaveBeenCalledWith(path.join('/brand', 'notes.txt'))

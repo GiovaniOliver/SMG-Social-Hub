@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import { publishPost } from '@/lib/social/index'
 import type { PostStatus } from '@/types'
 
@@ -42,7 +42,7 @@ export async function processScheduledPosts(): Promise<ProcessedPostResult[]> {
   const staleBefore = new Date(now.getTime() - STALE_PUBLISHING_AFTER_MS)
 
   // Recover posts that were claimed by an invocation that died before finishing.
-  await prisma.scheduledPost.updateMany({
+  await db.scheduledPost.updateMany({
     where: {
       status: 'PUBLISHING',
       updatedAt: { lt: staleBefore },
@@ -53,7 +53,7 @@ export async function processScheduledPosts(): Promise<ProcessedPostResult[]> {
     },
   })
 
-  const pendingPosts = await prisma.scheduledPost.findMany({
+  const pendingPosts = await db.scheduledPost.findMany({
     where: {
       status: 'PENDING',
       scheduledAt: { lte: now },
@@ -66,7 +66,7 @@ export async function processScheduledPosts(): Promise<ProcessedPostResult[]> {
   for (const post of pendingPosts) {
     // Atomically claim this post. Concurrent scheduler invocations can both see
     // the row in findMany(), but only one can transition it from PENDING.
-    const claim = await prisma.scheduledPost.updateMany({
+    const claim = await db.scheduledPost.updateMany({
       where: { id: post.id, status: 'PENDING' },
       data: { status: 'PUBLISHING', error: null },
     })
@@ -88,7 +88,7 @@ export async function processScheduledPosts(): Promise<ProcessedPostResult[]> {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unexpected publishing error'
 
-      await prisma.scheduledPost.update({
+      await db.scheduledPost.update({
         where: { id: post.id },
         data: { status: 'FAILED', error: errorMessage, results: '{}' },
       })
@@ -118,7 +118,7 @@ export async function processScheduledPosts(): Promise<ProcessedPostResult[]> {
           .join('; ') || 'All platforms failed'
       : undefined
 
-    await prisma.scheduledPost.update({
+    await db.scheduledPost.update({
       where: { id: post.id },
       data: {
         status: finalStatus,
@@ -140,7 +140,7 @@ export async function processScheduledPosts(): Promise<ProcessedPostResult[]> {
 }
 
 export async function cancelPost(postId: string): Promise<void> {
-  const post = await prisma.scheduledPost.findUnique({
+  const post = await db.scheduledPost.findUnique({
     where: { id: postId },
   })
 
@@ -154,7 +154,7 @@ export async function cancelPost(postId: string): Promise<void> {
     )
   }
 
-  await prisma.scheduledPost.update({
+  await db.scheduledPost.update({
     where: { id: postId },
     data: { status: 'CANCELLED' },
   })

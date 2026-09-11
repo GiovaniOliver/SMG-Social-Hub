@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import { generateReply } from '@/lib/ai/reply-generator'
 import { assessReplyRisk } from '@/lib/ai/risk-filter'
 import type { ApiResponse, BrandVoice, BrandContext } from '@/types'
@@ -51,7 +51,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { id } = await params
-  const opportunity = await prisma.commentOpportunity.findUnique({
+  const opportunity = await db.commentOpportunity.findUnique({
     where: { id },
     include: {
       brand: {
@@ -108,7 +108,7 @@ export async function POST(
   ]
   const uniqueWarnings = Array.from(new Set(allWarnings))
 
-  const draft = await prisma.commentDraft.create({
+  const draft = await db.commentDraft.create({
     data: {
       opportunityId: id,
       content: generated.content,
@@ -118,7 +118,7 @@ export async function POST(
 
   // Advance status to DRAFT_READY only if still at PENDING
   if (opportunity.status === 'PENDING') {
-    await prisma.commentOpportunity.update({
+    await db.commentOpportunity.update({
       where: { id: id },
       data: { status: 'DRAFT_READY' },
     })

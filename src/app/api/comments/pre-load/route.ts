@@ -1,7 +1,7 @@
 import { createHash } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { db, isDatabaseUniqueConstraintError } from '@/lib/db'
 import type { ApiResponse } from '@/types'
 
 const RequestSchema = z.object({
@@ -86,15 +86,6 @@ function buildDedupeKey(brandId: string, postUrl: string): string {
     .digest('hex')
 }
 
-function isUniqueConstraintError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: string }).code === 'P2002'
-  )
-}
-
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const body: unknown = await request.json()
@@ -111,7 +102,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { brandId } = parsed.data
 
     // Verify brand exists
-    const brand = await prisma.brand.findUnique({ where: { id: brandId } })
+    const brand = await db.brand.findUnique({ where: { id: brandId } })
     if (!brand) {
       const response: ApiResponse<never> = {
         success: false,
@@ -125,7 +116,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     for (const entry of SNAPREGISTER_OPPORTUNITIES) {
       const dedupeKey = buildDedupeKey(brandId, entry.postUrl)
-      const existing = await prisma.commentOpportunity.findUnique({
+      const existing = await db.commentOpportunity.findUnique({
         where: { dedupeKey },
       })
 
@@ -135,7 +126,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
 
       try {
-        await prisma.commentOpportunity.create({
+        await db.commentOpportunity.create({
           data: {
             dedupeKey,
             brandId,
@@ -151,7 +142,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       } catch (error) {
         // An overlapping preload can win the unique-key race after findUnique.
         // Treat that as an already-loaded item rather than failing the request.
-        if (isUniqueConstraintError(error)) {
+        if (isDatabaseUniqueConstraintError(error)) {
           skipped++
           continue
         }

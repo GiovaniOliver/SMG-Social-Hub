@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import { format } from 'date-fns'
 import { PLATFORM_LABELS } from '@/types'
 import type { Platform, PostStatus, CommentStatus } from '@/types'
@@ -24,21 +24,21 @@ async function getDashboardData() {
     recentPosts,
     recentComments,
   ] = await Promise.all([
-    prisma.scheduledPost.count({ where: { status: 'PENDING' } }),
-    prisma.scheduledPost.count({
+    db.scheduledPost.count({ where: { status: 'PENDING' } }),
+    db.scheduledPost.count({
       where: {
         status: 'PUBLISHED',
         publishedAt: { gte: startOfToday, lt: endOfToday },
       },
     }),
-    prisma.commentOpportunity.count({ where: { status: 'PENDING' } }),
-    prisma.platformConnection.count({ where: { isActive: true } }),
-    prisma.scheduledPost.findMany({
+    db.commentOpportunity.count({ where: { status: 'PENDING' } }),
+    db.platformConnection.count({ where: { isActive: true } }),
+    db.scheduledPost.findMany({
       take: 5,
       orderBy: { scheduledAt: 'desc' },
       include: { brand: { select: { name: true } } },
     }),
-    prisma.commentOpportunity.findMany({
+    db.commentOpportunity.findMany({
       take: 5,
       orderBy: { discoveredAt: 'desc' },
       include: { brand: { select: { name: true } } },

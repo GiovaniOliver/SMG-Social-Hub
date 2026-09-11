@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import type { ApiResponse } from '@/types'
 
 const approveSchema = z.object({
@@ -23,7 +23,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { id } = await params
-  const opportunity = await prisma.commentOpportunity.findUnique({
+  const opportunity = await db.commentOpportunity.findUnique({
     where: { id },
   })
 
@@ -56,7 +56,7 @@ export async function POST(
   let approvedContent: string
 
   if (draftId) {
-    const draft = await prisma.commentDraft.findUnique({
+    const draft = await db.commentDraft.findUnique({
       where: { id: draftId },
     })
 
@@ -71,7 +71,7 @@ export async function POST(
     approvedContent = customReply ?? draft.content
 
     // Mark this draft as approved
-    await prisma.commentDraft.update({
+    await db.commentDraft.update({
       where: { id: draftId },
       data: { isApproved: true },
     })
@@ -80,7 +80,7 @@ export async function POST(
     approvedContent = customReply as string
   }
 
-  const updatedOpportunity = await prisma.commentOpportunity.update({
+  const updatedOpportunity = await db.commentOpportunity.update({
     where: { id: id },
     data: {
       approvedReply: approvedContent,

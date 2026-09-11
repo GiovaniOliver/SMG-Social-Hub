@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import { PLATFORMS } from '@/types'
 import type { Platform } from '@/types'
 import { CONTENT_FORMATS, type ContentFormat } from '@/lib/campaigns/prompts'
@@ -28,11 +28,11 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
         { status: 400 }
       )
     }
-    const existing = await prisma.contentPiece.findUnique({ where: { id } })
+    const existing = await db.contentPiece.findUnique({ where: { id } })
     if (!existing) {
       return NextResponse.json({ success: false, error: 'Content piece not found' }, { status: 404 })
     }
-    const updated = await prisma.contentPiece.update({ where: { id }, data: parsed.data })
+    const updated = await db.contentPiece.update({ where: { id }, data: parsed.data })
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to update content piece'
@@ -43,11 +43,11 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 export async function DELETE(_request: NextRequest, { params }: RouteContext) {
   const { id } = await params
   try {
-    const existing = await prisma.contentPiece.findUnique({ where: { id } })
+    const existing = await db.contentPiece.findUnique({ where: { id } })
     if (!existing) {
       return NextResponse.json({ success: false, error: 'Content piece not found' }, { status: 404 })
     }
-    await prisma.contentPiece.delete({ where: { id } })
+    await db.contentPiece.delete({ where: { id } })
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to delete content piece'

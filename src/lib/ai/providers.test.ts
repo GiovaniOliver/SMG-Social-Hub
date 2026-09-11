@@ -14,21 +14,26 @@ vi.mock('fs', () => ({
   writeFileSync,
 }))
 
-// ── @google/generative-ai mock ──────────────────────────────────────────────
-const { geminiGenerateContent, getGenerativeModel } = vi.hoisted(() => {
-  const geminiGenerateContent = vi.fn()
-  return {
-    geminiGenerateContent,
-    getGenerativeModel: vi.fn((_config: unknown) => ({ generateContent: geminiGenerateContent })),
-  }
-})
+const {
+  getStoredDefaultProvider,
+  getStoredIntegration,
+  getStoredSecret,
+  saveStoredIntegration,
+  setStoredDefaultProvider,
+} = vi.hoisted(() => ({
+  getStoredDefaultProvider: vi.fn(),
+  getStoredIntegration: vi.fn(),
+  getStoredSecret: vi.fn(),
+  saveStoredIntegration: vi.fn(),
+  setStoredDefaultProvider: vi.fn(),
+}))
 
-vi.mock('@google/generative-ai', () => ({
-  GoogleGenerativeAI: class {
-    getGenerativeModel(config: unknown) {
-      return getGenerativeModel(config)
-    }
-  },
+vi.mock('./integration-store', () => ({
+  getStoredDefaultProvider,
+  getStoredIntegration,
+  getStoredSecret,
+  saveStoredIntegration,
+  setStoredDefaultProvider,
 }))
 
 // ── @anthropic-ai/sdk mock ──────────────────────────────────────────────────
@@ -60,9 +65,15 @@ beforeEach(() => {
   existsSync.mockReset()
   readFileSync.mockReset()
   writeFileSync.mockReset()
-  geminiGenerateContent.mockReset()
-  getGenerativeModel.mockClear()
   anthropicCreate.mockReset()
+  getStoredDefaultProvider.mockReset()
+  getStoredIntegration.mockReset()
+  getStoredSecret.mockReset()
+  saveStoredIntegration.mockReset()
+  setStoredDefaultProvider.mockReset()
+  getStoredDefaultProvider.mockResolvedValue(null)
+  getStoredIntegration.mockResolvedValue(null)
+  getStoredSecret.mockResolvedValue('')
   process.env = { ...originalEnv }
   delete process.env.GEMINI_API_KEY
   delete process.env.ANTHROPIC_API_KEY
@@ -151,24 +162,37 @@ describe('generateText — gemini', () => {
     await expect(generateText('hi', { provider: 'gemini' })).rejects.toThrow(/Gemini API key not configured/)
   })
 
-  it('calls the Gemini SDK with the system prompt and returns the text', async () => {
+  it('calls the Gemini Interactions API with the current request shape and returns text', async () => {
     storedKeys({ gemini: 'g-key' })
-    geminiGenerateContent.mockResolvedValue({ response: { text: () => 'hello from gemini' } })
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ output_text: 'hello from gemini' }),
+    })
+    global.fetch = fetchMock as unknown as typeof fetch
 
     const text = await generateText('say hi', {
       provider: 'gemini',
       systemPrompt: 'be nice',
       jsonMode: true,
+      maxTokens: 64,
     })
 
     expect(text).toBe('hello from gemini')
-    expect(getGenerativeModel).toHaveBeenCalledWith(
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe('https://generativelanguage.googleapis.com/v1beta/interactions')
+    expect(init.headers['x-goog-api-key']).toBe('g-key')
+
+    const body = JSON.parse(init.body)
+    expect(body).toEqual(
       expect.objectContaining({
-        systemInstruction: 'be nice',
-        generationConfig: expect.objectContaining({ responseMimeType: 'application/json' }),
+        model: 'gemini-3.5-flash-lite',
+        input: 'say hi',
+        store: false,
+        system_instruction: 'be nice',
+        generation_config: { max_output_tokens: 64 },
+        response_format: { type: 'text', mime_type: 'application/json' },
       })
     )
-    expect(geminiGenerateContent).toHaveBeenCalledWith('say hi')
   })
 })
 

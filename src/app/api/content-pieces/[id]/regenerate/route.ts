@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import { getBrandById } from '@/lib/brands'
 import { generateText } from '@/lib/ai/providers'
 import {
@@ -15,7 +15,7 @@ type RouteContext = { params: Promise<{ id: string }> }
 export async function POST(_request: NextRequest, { params }: RouteContext) {
   const { id } = await params
   try {
-    const piece = await prisma.contentPiece.findUnique({ where: { id } })
+    const piece = await db.contentPiece.findUnique({ where: { id } })
     if (!piece) {
       return NextResponse.json({ success: false, error: 'Content piece not found' }, { status: 404 })
     }
@@ -45,7 +45,7 @@ export async function POST(_request: NextRequest, { params }: RouteContext) {
     })
     const fields = parseHydrateResponse(text)
 
-    const updated = await prisma.contentPiece.update({
+    const updated = await db.contentPiece.update({
       where: { id },
       data: { ...fields, status: 'draft' },
     })

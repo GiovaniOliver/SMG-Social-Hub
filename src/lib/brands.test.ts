@@ -1,4 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+
+vi.mock('@/lib/db', () => ({
+  db: {
+    brand: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+    },
+  },
+}))
 import { parseGoals, parseSocialUrls } from './brands'
 
 describe('parseGoals', () => {

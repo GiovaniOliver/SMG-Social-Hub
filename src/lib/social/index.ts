@@ -1,5 +1,5 @@
 import { decrypt } from '@/lib/crypto'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import type { PublishResult } from './types'
 import { publishToFacebook } from './facebook'
 import { publishToInstagram } from './instagram'
@@ -47,7 +47,7 @@ export interface PublishPostParams {
 }
 
 export async function getConnectionForBrand(brandId: string, platform: string) {
-  return prisma.platformConnection.findUnique({
+  return db.platformConnection.findUnique({
     where: {
       brandId_platform: {
         brandId,

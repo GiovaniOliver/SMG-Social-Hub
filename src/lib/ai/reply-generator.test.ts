@@ -1,24 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { BrandVoice, BrandContext } from '@/types'
 
-// A key must be present or getClient() throws before the mocked call is reached.
-process.env.ANTHROPIC_API_KEY = 'test-key'
+const { generateText } = vi.hoisted(() => ({ generateText: vi.fn() }))
 
-// Mock the Anthropic SDK so generateReply can be exercised without a network call.
-// vi.hoisted lets the factory (which is hoisted above imports) share the spy.
-const { create } = vi.hoisted(() => ({ create: vi.fn() }))
-
-vi.mock('@anthropic-ai/sdk', () => ({
-  default: class {
-    messages = { create }
-  },
+vi.mock('./providers', () => ({
+  generateText,
 }))
 
 import { generateReply, type ReplyGeneratorParams } from './reply-generator'
 
-// Mirrors the Anthropic Messages API response shape: content is an array of blocks.
 function mockModelText(text: string): void {
-  create.mockResolvedValue({ content: [{ type: 'text', text }] })
+  generateText.mockResolvedValue(text)
 }
 
 const voice: BrandVoice = {
@@ -48,7 +40,7 @@ function params(overrides: Partial<ReplyGeneratorParams> = {}): ReplyGeneratorPa
 
 describe('generateReply', () => {
   beforeEach(() => {
-    create.mockReset()
+    generateText.mockReset()
   })
 
   it('parses a clean JSON response', async () => {
