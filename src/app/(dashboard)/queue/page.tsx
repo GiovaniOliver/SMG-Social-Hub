@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import { format } from 'date-fns'
 import { ClipboardList, AlertCircle, ExternalLink } from 'lucide-react'
 import { StatusBadge } from '@/components/status-badge'
@@ -31,8 +31,8 @@ async function getPosts(status: StatusFilter, page: number) {
       : { status }
 
   const [total, posts] = await Promise.all([
-    prisma.scheduledPost.count({ where }),
-    prisma.scheduledPost.findMany({
+    db.scheduledPost.count({ where }),
+    db.scheduledPost.findMany({
       where,
       include: { brand: { select: { name: true } } },
       orderBy: { scheduledAt: 'asc' },
