@@ -203,6 +203,9 @@ async function generateWithGemini(prompt: string, model: string, options: Genera
     store: false,
   }
   if (options.systemPrompt) body.system_instruction = options.systemPrompt
+  body.generation_config = {
+    max_output_tokens: options.maxTokens ?? 1024,
+  }
   if (options.jsonMode) {
     body.response_format = { type: 'text', mime_type: 'application/json' }
   }
@@ -212,7 +215,6 @@ async function generateWithGemini(prompt: string, model: string, options: Genera
     headers: {
       'Content-Type': 'application/json',
       'x-goog-api-key': apiKey,
-      'Api-Revision': '2026-05-20',
     },
     body: JSON.stringify(body),
   })
