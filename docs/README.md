@@ -55,7 +55,7 @@ Focused refactor documentation.
 
 ### `superpowers/`
 
-Older implementation/planning artifacts. Treat **DEVELOPMENT_STATUS.md** as the current status source when there is a conflict.
+Older implementation/planning artifacts. These intentionally preserve historical architecture references such as Prisma/SQLite and should not be treated as current implementation guidance. Treat **DEVELOPMENT_STATUS.md** as the current status source when there is a conflict.
 
 ## Documentation convention
 
