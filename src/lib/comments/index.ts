@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import { prisma } from '@/lib/db'
+import { db, isDatabaseUniqueConstraintError } from '@/lib/db'
 import { decrypt } from '@/lib/crypto'
 import type { Platform } from '@/types'
 import type { CommentFetchResult } from './types'
@@ -47,7 +47,7 @@ async function getDecryptedConnection(
   brandId: string,
   platform: Platform
 ): Promise<{ accessToken: string; accountId: string | null } | null> {
-  const connection = await prisma.platformConnection.findUnique({
+  const connection = await db.platformConnection.findUnique({
     where: { brandId_platform: { brandId, platform } },
   })
 
@@ -72,15 +72,6 @@ export function buildOpportunityDedupeKey(
     .digest('hex')
 }
 
-function isUniqueConstraintError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: string }).code === 'P2002'
-  )
-}
-
 async function createOpportunityIfNew(
   brandId: string,
   data: NewOpportunityData
@@ -89,7 +80,7 @@ async function createOpportunityIfNew(
   const dedupeKey = buildOpportunityDedupeKey(brandId, data.postUrl, commentId)
 
   try {
-    await prisma.commentOpportunity.create({
+    await db.commentOpportunity.create({
       data: {
         dedupeKey,
         brandId,
@@ -110,7 +101,7 @@ async function createOpportunityIfNew(
   } catch (error) {
     // The unique dedupeKey is the concurrency boundary. If another overlapping
     // scan inserted the same opportunity first, that is a successful no-op.
-    if (isUniqueConstraintError(error)) return false
+    if (isDatabaseUniqueConstraintError(error)) return false
     throw error
   }
 }
@@ -222,7 +213,7 @@ async function scanReddit(brandId: string): Promise<{ results: CommentFetchResul
   if (!arcadeApiKey || !arcadeUserId) return { results: [], isOwned: false }
 
   // Load brand keywords from brand context
-  const brand = await prisma.brand.findUnique({ where: { id: brandId } })
+  const brand = await db.brand.findUnique({ where: { id: brandId } })
   if (!brand) return { results: [], isOwned: false }
 
   let keywords: string[] = []
@@ -251,7 +242,7 @@ async function scanTwitter(brandId: string): Promise<{ results: CommentFetchResu
 
   if (!arcadeApiKey || !arcadeUserId) return { results: [], isOwned: false }
 
-  const brand = await prisma.brand.findUnique({ where: { id: brandId } })
+  const brand = await db.brand.findUnique({ where: { id: brandId } })
   if (!brand) return { results: [], isOwned: false }
 
   let keywords: string[] = []
