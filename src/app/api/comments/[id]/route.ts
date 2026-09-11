@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import type { ApiResponse } from '@/types'
 
 const PatchBodySchema = z.object({
@@ -18,7 +18,7 @@ export async function GET(
 ): Promise<NextResponse> {
   const { id } = await params
   try {
-    const opportunity = await prisma.commentOpportunity.findUnique({
+    const opportunity = await db.commentOpportunity.findUnique({
       where: { id },
       include: {
         drafts: { orderBy: { createdAt: 'desc' } },
@@ -61,7 +61,7 @@ export async function PATCH(
       return NextResponse.json(response, { status: 400 })
     }
 
-    const existing = await prisma.commentOpportunity.findUnique({ where: { id } })
+    const existing = await db.commentOpportunity.findUnique({ where: { id } })
     if (!existing) {
       const response: ApiResponse<never> = { success: false, error: 'Opportunity not found' }
       return NextResponse.json(response, { status: 404 })
@@ -71,7 +71,7 @@ export async function PATCH(
     if (parsed.data.status !== undefined) updateData.status = parsed.data.status
     if (parsed.data.approvedReply !== undefined) updateData.approvedReply = parsed.data.approvedReply
 
-    const updated = await prisma.commentOpportunity.update({
+    const updated = await db.commentOpportunity.update({
       where: { id },
       data: updateData,
       include: {
@@ -97,13 +97,13 @@ export async function DELETE(
 ): Promise<NextResponse> {
   const { id } = await params
   try {
-    const existing = await prisma.commentOpportunity.findUnique({ where: { id } })
+    const existing = await db.commentOpportunity.findUnique({ where: { id } })
     if (!existing) {
       const response: ApiResponse<never> = { success: false, error: 'Opportunity not found' }
       return NextResponse.json(response, { status: 404 })
     }
 
-    await prisma.commentOpportunity.delete({ where: { id } })
+    await db.commentOpportunity.delete({ where: { id } })
 
     const response: ApiResponse<{ deleted: true }> = { success: true, data: { deleted: true } }
     return NextResponse.json(response)
