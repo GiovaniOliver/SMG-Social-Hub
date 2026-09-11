@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import type { ApiResponse } from '@/types'
 
 interface SkipResponseData {
@@ -13,7 +13,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   const { id } = await params
-  const opportunity = await prisma.commentOpportunity.findUnique({
+  const opportunity = await db.commentOpportunity.findUnique({
     where: { id },
   })
 
@@ -33,7 +33,7 @@ export async function POST(
     return NextResponse.json(response, { status: 422 })
   }
 
-  const updated = await prisma.commentOpportunity.update({
+  const updated = await db.commentOpportunity.update({
     where: { id: id },
     data: { status: 'SKIPPED' },
   })
