@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import type { BrandVoice, BrandContext, Platform } from '@/types'
 import { PLATFORMS } from '@/types'
 
@@ -133,17 +133,17 @@ function mapBrand(brand: Record<string, unknown>): ParsedBrand {
 }
 
 export async function getBrandBySlug(slug: string): Promise<ParsedBrand | null> {
-  const brand = await prisma.brand.findUnique({ where: { slug } })
+  const brand = await db.brand.findUnique({ where: { slug } })
   return brand ? mapBrand(brand) : null
 }
 
 export async function getBrandById(id: string): Promise<ParsedBrand | null> {
-  const brand = await prisma.brand.findUnique({ where: { id } })
+  const brand = await db.brand.findUnique({ where: { id } })
   return brand ? mapBrand(brand) : null
 }
 
 export async function getAllBrands(): Promise<ParsedBrand[]> {
-  const brands = await prisma.brand.findMany({
+  const brands = await db.brand.findMany({
     where: { isActive: true },
     orderBy: { name: 'asc' },
   })
