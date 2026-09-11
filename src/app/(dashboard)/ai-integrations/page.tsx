@@ -64,6 +64,8 @@ export default function AIIntegrationsPage() {
   const [models, setModels] = useState<Record<string, string>>({})
   const [ollamaBaseUrl, setOllamaBaseUrl] = useState('')
   const [saving, setSaving] = useState<string | null>(null)
+  const [testing, setTesting] = useState<string | null>(null)
+  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; message: string }>>({})
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
 
@@ -112,6 +114,51 @@ export default function AIIntegrationsPage() {
     }
   }
 
+  async function setDefaultProvider(provider: AIProvider) {
+    setError('')
+    setMessage('')
+    try {
+      const res = await fetch('/api/settings/ai-integrations', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ defaultProvider: provider }),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error ?? 'Failed to update default provider')
+      setStatus(json.data as IntegrationStatus)
+      setMessage(`${PROVIDERS.find((item) => item.id === provider)?.label ?? provider} is now the default text provider.`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update default provider')
+    }
+  }
+
+  async function testProvider(provider: AIProvider | 'runware') {
+    setTesting(provider)
+    setError('')
+    try {
+      const res = await fetch('/api/settings/ai-integrations/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider }),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error ?? 'Connection test failed')
+      const latency = typeof json.data?.latencyMs === 'number' ? ` in ${json.data.latencyMs} ms` : ''
+      setTestResults((current) => ({
+        ...current,
+        [provider]: { ok: true, message: `Connection verified${latency}` },
+      }))
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : 'Connection test failed'
+      setTestResults((current) => ({
+        ...current,
+        [provider]: { ok: false, message: detail },
+      }))
+    } finally {
+      setTesting(null)
+    }
+  }
+
   if (!status) {
     return <div className="p-6 text-sm text-slate-400">{error || 'Loading AI integrations…'}</div>
   }
@@ -152,6 +199,27 @@ export default function AIIntegrationsPage() {
           <DatabaseZap size={18} className="text-blue-300" />
           <p className="text-sm font-medium text-white mt-3">Central configuration</p>
           <p className="text-xs text-slate-400 mt-1">Provider models and credentials are no longer hard-coded per workflow.</p>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-white">Default text provider</p>
+            <p className="text-xs text-slate-400 mt-1">
+              Brand extraction, content generation, and other generic text workflows use this provider unless a workflow overrides it.
+            </p>
+          </div>
+          <select
+            value={status.defaultProvider}
+            onChange={(event) => setDefaultProvider(event.target.value as AIProvider)}
+            className="bg-slate-900 border border-slate-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="gemini">Google Gemini</option>
+            <option value="anthropic">Anthropic Claude</option>
+            <option value="openai">OpenAI</option>
+            <option value="ollama">Ollama</option>
+          </select>
         </div>
       </div>
 
@@ -216,15 +284,38 @@ export default function AIIntegrationsPage() {
                 </label>
               )}
 
-              <button
-                type="button"
-                onClick={() => saveProvider(provider.id)}
-                disabled={saving === provider.id}
-                className="btn-primary flex items-center justify-center gap-2"
-              >
-                {saving === provider.id && <Loader2 size={14} className="animate-spin" />}
-                Save {provider.label}
-              </button>
+              {testResults[provider.id] && (
+                <div
+                  className={`text-xs rounded-lg border px-3 py-2 ${
+                    testResults[provider.id].ok
+                      ? 'border-green-800 bg-green-950/40 text-green-300'
+                      : 'border-red-800 bg-red-950/40 text-red-300'
+                  }`}
+                >
+                  {testResults[provider.id].message}
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                  type="button"
+                  onClick={() => saveProvider(provider.id)}
+                  disabled={saving === provider.id}
+                  className="btn-primary flex items-center justify-center gap-2 flex-1"
+                >
+                  {saving === provider.id && <Loader2 size={14} className="animate-spin" />}
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={() => testProvider(provider.id)}
+                  disabled={testing === provider.id || !configured}
+                  className="btn-secondary flex items-center justify-center gap-2 flex-1 disabled:opacity-50"
+                >
+                  {testing === provider.id && <Loader2 size={14} className="animate-spin" />}
+                  Test connection
+                </button>
+              </div>
             </section>
           )
         })}

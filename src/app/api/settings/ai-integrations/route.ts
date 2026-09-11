@@ -3,6 +3,7 @@ import { z } from 'zod'
 import {
   getAIIntegrationStatus,
   saveAIIntegrationSettings,
+  setAIIntegrationDefaultProvider,
   type AIProvider,
 } from '@/lib/ai/providers'
 
@@ -59,3 +60,26 @@ export async function POST(req: NextRequest) {
 }
 
 export type { AIProvider }
+
+
+const defaultProviderSchema = z.object({
+  defaultProvider: z.enum(['gemini', 'anthropic', 'openai', 'ollama']),
+})
+
+export async function PUT(req: NextRequest) {
+  try {
+    const parsed = defaultProviderSchema.safeParse(await req.json())
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid request' },
+        { status: 400 }
+      )
+    }
+
+    await setAIIntegrationDefaultProvider(parsed.data.defaultProvider)
+    return NextResponse.json({ success: true, data: await getAIIntegrationStatus() })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to update default AI provider'
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
+  }
+}
