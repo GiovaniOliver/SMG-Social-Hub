@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { loadKeys, saveKeys, getKeyStatus } from '@/lib/ai/providers'
+import {
+  getAIIntegrationStatus,
+  saveAIIntegrationSettings,
+} from '@/lib/ai/providers'
 
 const schema = z.object({
   gemini: z.string().optional(),
@@ -12,14 +15,17 @@ const schema = z.object({
 })
 
 export async function GET() {
-  return NextResponse.json({ success: true, data: getKeyStatus() })
+  try {
+    return NextResponse.json({ success: true, data: await getAIIntegrationStatus() })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load settings'
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const parsed = schema.safeParse(body)
-
+    const parsed = schema.safeParse(await req.json())
     if (!parsed.success) {
       return NextResponse.json(
         { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid request' },
@@ -27,22 +33,22 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { gemini, anthropic, openai, runware, ollamaBaseUrl, defaultProvider } = parsed.data
-    const existing = loadKeys()
+    const tasks: Promise<void>[] = []
+    if (parsed.data.gemini) tasks.push(saveAIIntegrationSettings({ provider: 'gemini', secret: parsed.data.gemini }))
+    if (parsed.data.anthropic) tasks.push(saveAIIntegrationSettings({ provider: 'anthropic', secret: parsed.data.anthropic }))
+    if (parsed.data.openai) tasks.push(saveAIIntegrationSettings({ provider: 'openai', secret: parsed.data.openai }))
+    if (parsed.data.runware) tasks.push(saveAIIntegrationSettings({ provider: 'runware', secret: parsed.data.runware }))
+    if (parsed.data.ollamaBaseUrl !== undefined) {
+      tasks.push(saveAIIntegrationSettings({
+        provider: 'ollama',
+        baseUrl: parsed.data.ollamaBaseUrl || 'http://localhost:11434',
+      }))
+    }
 
-    // Empty string clears a key; undefined leaves the stored value untouched.
-    saveKeys({
-      gemini: gemini !== undefined ? gemini || undefined : existing.gemini,
-      anthropic: anthropic !== undefined ? anthropic || undefined : existing.anthropic,
-      openai: openai !== undefined ? openai || undefined : existing.openai,
-      runware: runware !== undefined ? runware || undefined : existing.runware,
-      ollamaBaseUrl: ollamaBaseUrl !== undefined ? ollamaBaseUrl || undefined : existing.ollamaBaseUrl,
-      defaultProvider: defaultProvider ?? existing.defaultProvider,
-    })
-
-    return NextResponse.json({ success: true, data: getKeyStatus() })
+    await Promise.all(tasks)
+    return NextResponse.json({ success: true, data: await getAIIntegrationStatus() })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to save keys'
+    const message = error instanceof Error ? error.message : 'Failed to save settings'
     return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }
