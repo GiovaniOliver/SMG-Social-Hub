@@ -6,15 +6,15 @@ This document is the living implementation tracker for SMG Social Hub. Update it
 
 ## Current phase
 
-**Phase: Production hardening + real account onboarding**
+**Phase: Real account onboarding + provider verification**
 
-The app foundation is working and the focus has shifted from basic architecture to:
+Production hardening is complete and verified. The focus has shifted to:
 
-1. mobile/responsive usability,
-2. production provider configuration,
+1. mobile QA on real devices,
+2. verifying configured AI providers,
 3. connecting existing social-media accounts,
 4. verifying real publishing capabilities,
-5. hardening AI/provider integrations,
+5. connection-health and token-refresh hardening,
 6. preparing the later UGC / AI-influencer management workflow.
 
 The UGC/persona builder is intentionally deferred until the existing social accounts are connected and inventoried.
@@ -155,6 +155,13 @@ Brand URL extraction should now route through the current Gemini integration rat
 - [x] Increased navigation touch targets.
 - [x] Added iOS safe-area handling to the mobile top bar.
 
+### Production validation
+
+- [x] PR #18 merged to `main` as `74b6bbaa28f1bbd1ac6cc51156bad951c526ff94`.
+- [x] Vercel production deployment reached `READY`.
+- [x] GitHub Actions test suite passed on `main`.
+- [x] `https://social.socialtizemg.com/api/health` returned HTTP 200 with `database: ok`.
+
 ## Current real-data state
 
 At the start of the account-onboarding phase, `social_hub_accounts` contained **zero active account identities**.
@@ -262,7 +269,7 @@ The social account registry is intentionally the dependency for this later phase
 - PR #15 — social-provider readiness checks
 - PR #16 — AI provider tests + persistent default LLM
 - PR #17 — responsive dashboard shell + documentation consolidation
-- Production cleanup — warning cleanup, current Gemini test coverage, legacy SDK removal, complete Prisma-reference cleanup, and GitHub Actions test enforcement
+- PR #18 — production cleanup: warning cleanup, current Gemini test coverage, legacy SDK removal, complete Prisma-reference cleanup, GitHub Actions test enforcement, and verified production Supabase health
 
 ## Documentation rules
 
