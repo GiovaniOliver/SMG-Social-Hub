@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { publishPost } from '@/lib/social'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 
 const publishBodySchema = z.object({
   brandId: z.string().min(1, 'brandId is required'),
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     parsed.data
 
   // Verify brand exists
-  const brand = await prisma.brand.findUnique({ where: { id: brandId } })
+  const brand = await db.brand.findUnique({ where: { id: brandId } })
   if (!brand) {
     return NextResponse.json(
       { success: false, error: `Brand "${brandId}" not found.` },
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   // If a scheduledPostId was provided, mark it as publishing
   if (scheduledPostId) {
-    await prisma.scheduledPost.updateMany({
+    await db.scheduledPost.updateMany({
       where: { id: scheduledPostId, brandId },
       data: { status: 'PUBLISHING' },
     })
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       .filter(([, r]) => !r.success)
       .map(([platform, r]) => `${platform}: ${r.error ?? 'Unknown error'}`)
 
-    await prisma.scheduledPost.updateMany({
+    await db.scheduledPost.updateMany({
       where: { id: scheduledPostId, brandId },
       data: {
         status: finalStatus,
