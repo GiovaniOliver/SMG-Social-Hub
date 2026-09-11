@@ -85,6 +85,8 @@ A provider authorization may discover multiple publishing identities. Brand owne
 - [x] Added provider-readiness checks before OAuth begins.
 - [x] Added callback URL validation against the production app URL.
 - [x] Added safe display of missing environment-variable names without exposing secrets.
+- [x] Added per-account **Verify connection** checks against provider identity APIs / Arcade.
+- [x] Persist verification attempts, `lastVerifiedAt`, and connected / needs-reauth / disconnected / error states.
 
 ### Social providers
 
@@ -224,7 +226,7 @@ After each provider is connected:
 - [ ] inspect imported identities,
 - [ ] identify duplicates,
 - [ ] identify unsupported/manual-only identities,
-- [ ] verify token/credential ownership,
+- [x] provider verification tooling is implemented; use **Verify connection** to confirm token/credential ownership after each import,
 - [ ] perform a safe publishing test on a designated test identity,
 - [ ] verify the published post ID/URL is persisted,
 - [ ] verify failures are surfaced clearly,
@@ -240,7 +242,8 @@ After account connection paths are verified:
 - [x] replace remaining avoidable raw `<img>` usage with Next Image where appropriate,
 - [ ] review token refresh paths,
 - [ ] review retry/idempotency behavior for publishing,
-- [ ] add connection-health refresh jobs,
+- [x] add on-demand connection-health verification for each inventoried account,
+- [ ] add scheduled connection-health refresh jobs after real-account onboarding,
 - [ ] add stronger operator-facing error diagnostics,
 - [ ] run full mobile QA across all dashboard pages,
 - [ ] run final security review of OAuth state, token encryption, and server-only secrets.
@@ -270,6 +273,7 @@ The social account registry is intentionally the dependency for this later phase
 - PR #16 — AI provider tests + persistent default LLM
 - PR #17 — responsive dashboard shell + documentation consolidation
 - PR #18 — production cleanup: warning cleanup, current Gemini test coverage, legacy SDK removal, complete Prisma-reference cleanup, GitHub Actions test enforcement, and verified production Supabase health
+- PR #20 — per-account social connection verification across direct OAuth providers and Arcade-managed X/Reddit identities
 
 ## Documentation rules
 
