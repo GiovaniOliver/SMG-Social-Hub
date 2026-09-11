@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import type { ApiResponse, Platform, PostStatus } from '@/types'
 import { PLATFORMS } from '@/types'
 
@@ -116,8 +116,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (status) where.status = status
 
   const [total, posts] = await Promise.all([
-    prisma.scheduledPost.count({ where }),
-    prisma.scheduledPost.findMany({
+    db.scheduledPost.count({ where }),
+    db.scheduledPost.findMany({
       where,
       include: { brand: { select: { name: true } } },
       orderBy: { scheduledAt: 'asc' },
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   const { brandId, platforms, content, mediaUrls, scheduledAt, notes, title, subreddit } = parsed.data
 
-  const brand = await prisma.brand.findUnique({ where: { id: brandId } })
+  const brand = await db.brand.findUnique({ where: { id: brandId } })
   if (!brand) {
     const response: ApiResponse<never> = { success: false, error: 'Brand not found' }
     return NextResponse.json(response, { status: 404 })
@@ -165,7 +165,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     .filter(Boolean)
     .join('\n') || null
 
-  const post = await prisma.scheduledPost.create({
+  const post = await db.scheduledPost.create({
     data: {
       brandId,
       platforms: JSON.stringify(platforms),
