@@ -1,6 +1,6 @@
 # SMG Social Hub — Development Status
 
-_Last updated: September 10, 2026 (America/Chicago)_
+_Last updated: September 11, 2026 (America/Chicago)_
 
 This document is the living implementation tracker for SMG Social Hub. Update it whenever a production feature, integration, architecture decision, blocker, or deployment phase changes.
 
@@ -71,6 +71,9 @@ A provider authorization may discover multiple publishing identities. Brand owne
 - [x] Added account registry schema.
 - [x] Added AI integration settings schema.
 - [x] Kept all database changes scoped to `social_hub_*` tables.
+- [x] Removed the legacy `prisma` compatibility alias from runtime code.
+- [x] Removed Prisma-specific `P2002` handling in favor of database unique-constraint detection.
+- [x] Removed obsolete one-time BrandFlow migration scripts that still imported `@prisma/client`.
 
 ### Social account registry
 
@@ -224,8 +227,8 @@ After each provider is connected:
 
 After account connection paths are verified:
 
-- [ ] remove remaining lint warnings,
-- [ ] replace remaining avoidable raw `<img>` usage with Next Image where appropriate,
+- [x] remove remaining lint warnings,
+- [x] replace remaining avoidable raw `<img>` usage with Next Image where appropriate,
 - [ ] review token refresh paths,
 - [ ] review retry/idempotency behavior for publishing,
 - [ ] add connection-health refresh jobs,
@@ -256,7 +259,8 @@ The social account registry is intentionally the dependency for this later phase
 - PR #14 — Gemini Interactions request cleanup
 - PR #15 — social-provider readiness checks
 - PR #16 — AI provider tests + persistent default LLM
-- Current responsive/mobile work — responsive dashboard shell + documentation consolidation
+- PR #17 — responsive dashboard shell + documentation consolidation
+- Production cleanup — warning cleanup, current Gemini test coverage, legacy SDK removal, and complete Prisma-reference cleanup
 
 ## Documentation rules
 
