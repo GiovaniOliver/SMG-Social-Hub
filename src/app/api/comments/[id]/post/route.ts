@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import { decrypt } from '@/lib/crypto'
 import type { ApiResponse } from '@/types'
 
@@ -11,7 +11,7 @@ async function getConnectionToken(
   brandId: string,
   platform: string
 ): Promise<{ accessToken: string; accountId: string | null } | null> {
-  const connection = await prisma.platformConnection.findUnique({
+  const connection = await db.platformConnection.findUnique({
     where: { brandId_platform: { brandId, platform } },
   })
 
@@ -289,7 +289,7 @@ export async function POST(
   const { id } = await params
 
   try {
-    const opportunity = await prisma.commentOpportunity.findUnique({
+    const opportunity = await db.commentOpportunity.findUnique({
       where: { id },
     })
 
@@ -328,7 +328,7 @@ export async function POST(
     // External (not owned) channels cannot be auto-posted — mark the already
     // approved reply as manually posted. The client can copy approvedReply.
     if (!isOwned) {
-      const updated = await prisma.commentOpportunity.update({
+      const updated = await db.commentOpportunity.update({
         where: { id },
         data: {
           status: 'POSTED',
@@ -388,7 +388,7 @@ export async function POST(
       return NextResponse.json(response, { status: 502 })
     }
 
-    const updated = await prisma.commentOpportunity.update({
+    const updated = await db.commentOpportunity.update({
       where: { id },
       data: {
         status: 'POSTED',
