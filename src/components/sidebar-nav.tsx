@@ -14,6 +14,7 @@ import {
   MessageSquare,
   UsersRound,
   Building2,
+  Bot,
   Settings,
   LogOut,
 } from 'lucide-react'
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { href: '/queue', label: 'Queue', icon: ClipboardList },
   { href: '/comments', label: 'Comments', icon: MessageSquare },
   { href: '/brands', label: 'Brands', icon: Building2 },
+  { href: '/ai-integrations', label: 'AI Integrations', icon: Bot },
   { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
