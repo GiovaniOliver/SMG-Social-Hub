@@ -9,7 +9,7 @@
 - [x] Remove Prisma schema/migrations/dependencies/scripts.
 - [x] Remove Prisma compatibility aliases and Prisma-specific error handling.
 - [x] Update environment documentation.
-- [ ] Verify final branch build/tests.
+- [x] Verify final branch build/tests.
 - [ ] Verify production runtime after merge.
 
 Historical planning documents under `docs/superpowers/` may still mention Prisma because they preserve the original 2026 migration history. They are not current implementation guidance.
