@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-const { getKey } = vi.hoisted(() => ({ getKey: vi.fn() }))
-vi.mock('./providers', () => ({ getKey }))
+const { getProviderSecret } = vi.hoisted(() => ({ getProviderSecret: vi.fn() }))
+vi.mock('./providers', () => ({ getProviderSecret }))
 
 import { generateImage, generateVideo } from './media-providers'
 
 const originalFetch = global.fetch
 
 beforeEach(() => {
-  getKey.mockReset()
+  getProviderSecret.mockReset()
 })
 
 afterEach(() => {
@@ -17,12 +17,12 @@ afterEach(() => {
 
 describe('generateImage', () => {
   it('throws when no Runware key is configured', async () => {
-    getKey.mockReturnValue('')
+    getProviderSecret.mockResolvedValue('')
     await expect(generateImage('a cat')).rejects.toThrow(/Runware API key not configured/)
   })
 
   it('returns the imageURL from a successful response', async () => {
-    getKey.mockReturnValue('rw-key')
+    getProviderSecret.mockResolvedValue('rw-key')
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -43,7 +43,7 @@ describe('generateImage', () => {
   })
 
   it('throws when the response has no imageURL', async () => {
-    getKey.mockReturnValue('rw-key')
+    getProviderSecret.mockResolvedValue('rw-key')
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ data: [{}] }),
@@ -53,7 +53,7 @@ describe('generateImage', () => {
   })
 
   it('throws with status and body when the response is not ok', async () => {
-    getKey.mockReturnValue('rw-key')
+    getProviderSecret.mockResolvedValue('rw-key')
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
@@ -66,12 +66,12 @@ describe('generateImage', () => {
 
 describe('generateVideo', () => {
   it('throws when no Runware key is configured', async () => {
-    getKey.mockReturnValue('')
+    getProviderSecret.mockResolvedValue('')
     await expect(generateVideo('a river')).rejects.toThrow(/Runware API key not configured/)
   })
 
   it('submits the task then polls until success', async () => {
-    getKey.mockReturnValue('rw-key')
+    getProviderSecret.mockResolvedValue('rw-key')
     const fetchMock = vi.fn()
     fetchMock
       .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ taskType: 'videoInference' }] }) }) // submit
@@ -89,7 +89,7 @@ describe('generateVideo', () => {
   })
 
   it('throws on a Runware error status', async () => {
-    getKey.mockReturnValue('rw-key')
+    getProviderSecret.mockResolvedValue('rw-key')
     const fetchMock = vi.fn()
     fetchMock
       .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ taskType: 'videoInference' }] }) })
@@ -105,7 +105,7 @@ describe('generateVideo', () => {
   })
 
   it('throws a timeout error if the poll never succeeds', async () => {
-    getKey.mockReturnValue('rw-key')
+    getProviderSecret.mockResolvedValue('rw-key')
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ data: [{ status: 'processing' }] }),
@@ -115,7 +115,7 @@ describe('generateVideo', () => {
   })
 
   it('throws immediately if a poll reports success with no videoURL, without waiting for the timeout', async () => {
-    getKey.mockReturnValue('rw-key')
+    getProviderSecret.mockResolvedValue('rw-key')
     const fetchMock = vi.fn()
     fetchMock
       .mockResolvedValueOnce({ ok: true, json: async () => ({ data: [{ taskType: 'videoInference' }] }) }) // submit
@@ -129,7 +129,7 @@ describe('generateVideo', () => {
   })
 
   it('throws immediately when Runware reports an error in the errors array', async () => {
-    getKey.mockReturnValue('rw-key')
+    getProviderSecret.mockResolvedValue('rw-key')
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ data: [], errors: [{ message: 'invalid model' }] }),
