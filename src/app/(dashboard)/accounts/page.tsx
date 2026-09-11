@@ -5,6 +5,7 @@ import { ExternalLink, Link2, ShieldCheck, ShieldAlert, CircleOff } from 'lucide
 import { listSocialAccounts, type SocialAccountRow } from '@/lib/social-accounts'
 import { PLATFORM_LABELS } from '@/types'
 import { ManualAccountForm } from './manual-account-form'
+import { VerifyAccountButton } from './verify-account-button'
 import { getSocialProviderReadiness, type SocialProviderId } from '@/lib/social/provider-readiness'
 
 const CONNECTORS = [
@@ -64,6 +65,19 @@ function capabilityLabel(account: SocialAccountRow) {
   if (account.publishingCapability === 'READ_ONLY') return 'Read only'
   if (account.publishingCapability === 'UNSUPPORTED') return 'No API publishing'
   return 'Manual publish'
+}
+
+function shortDateTime(value: string | null | undefined) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
 }
 
 export default async function AccountsPage({
@@ -211,7 +225,7 @@ export default async function AccountsPage({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {accounts.map((account) => (
-              <article key={account.id} className="card flex gap-4">
+              <article key={account.id} className="card flex flex-col sm:flex-row gap-4">
                 {account.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={account.avatarUrl} alt="" className="w-11 h-11 rounded-full object-cover bg-slate-800 flex-shrink-0" />
@@ -245,6 +259,24 @@ export default async function AccountsPage({
                       {capabilityLabel(account)}
                     </span>
                   </div>
+
+                  <div className="mt-3 text-[11px] text-slate-500 space-y-1">
+                    {account.lastVerifiedAt && (
+                      <p>Last verified: {shortDateTime(account.lastVerifiedAt)}</p>
+                    )}
+                    {account.providerExpiresAt && (
+                      <p>Token expiry: {shortDateTime(account.providerExpiresAt)}</p>
+                    )}
+                    {!account.providerConnectionId && (
+                      <p>Manual inventory entry — no provider credential is attached.</p>
+                    )}
+                  </div>
+
+                  {account.providerConnectionId && (
+                    <div className="mt-3 pt-3 border-t border-slate-700/70">
+                      <VerifyAccountButton accountId={account.id} />
+                    </div>
+                  )}
                 </div>
               </article>
             ))}
