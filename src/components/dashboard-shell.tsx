@@ -72,7 +72,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         {sidebarContent}
       </aside>
 
-      <div className="lg:hidden sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-700 bg-slate-900/95 px-3 backdrop-blur">
+      <div
+        className="lg:hidden sticky top-0 z-30 flex min-h-14 items-center justify-between border-b border-slate-700 bg-slate-900/95 px-3 backdrop-blur"
+        style={{
+          paddingTop: 'env(safe-area-inset-top)',
+          minHeight: 'calc(3.5rem + env(safe-area-inset-top))',
+        }}
+      >
         <button
           type="button"
           onClick={() => setMobileOpen(true)}
