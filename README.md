@@ -1,5 +1,7 @@
 # SMG Social Hub
 
+> Current implementation status and next tasks: [`docs/DEVELOPMENT_STATUS.md`](./docs/DEVELOPMENT_STATUS.md)
+
 Social media account management, content creation, scheduling, publishing, campaigns, and AI-assisted engagement for Socialtize Marketing Group.
 
 ## Account-first connection architecture
@@ -21,7 +23,8 @@ Social accounts are inventoried before they are assigned to brands or future cre
 - **YouTube / Google:** discovers the authorized YouTube channel and registers the Google identity if no channel is returned.
 - **LinkedIn:** registers the authorized LinkedIn member identity.
 - **TikTok:** registers the authorized TikTok profile.
-- **X / Twitter and Reddit:** can be inventoried manually while the Arcade-based connection path is audited for the account registry.
+- **X / Twitter:** connects through Arcade-managed OAuth, discovers the authorized identity with `X.WhoAmI`, and supports the implemented publishing path.
+- **Reddit:** connects through Arcade-managed OAuth, discovers the authorized identity with `Reddit.GetMyUsername`, and supports the implemented publishing path.
 
 The legacy `/connect` route redirects to `/accounts`.
 
@@ -71,7 +74,11 @@ Current Social Hub tables include:
 | `AUTH_SECRET` | Yes | Secret used for operator authentication and signed OAuth state |
 | `APP_PASSWORD` | Yes | Shared operator login password |
 | `CRON_SECRET` | Yes for cron | Secret required by the cron endpoint |
-| `ANTHROPIC_API_KEY` | Yes for AI | Anthropic API key for AI generation/reply workflows |
+| `GEMINI_API_KEY` | AI fallback | Google Gemini API key; can also be stored through AI Integrations |
+| `ANTHROPIC_API_KEY` | AI fallback | Anthropic API key; can also be stored through AI Integrations |
+| `OPENAI_API_KEY` | AI fallback | OpenAI API key; can also be stored through AI Integrations |
+| `RUNWARE_API_KEY` | Media fallback | Runware API key; can also be stored through AI Integrations |
+| `OLLAMA_BASE_URL` | Optional | Local/self-hosted Ollama endpoint |
 | `FACEBOOK_APP_ID` | Meta | Meta/Facebook application ID |
 | `FACEBOOK_APP_SECRET` | Meta | Meta/Facebook application secret |
 | `FACEBOOK_REDIRECT_URI` | Meta | Meta OAuth callback |
@@ -139,9 +146,13 @@ POST http://localhost:3000/api/comments/pre-load
 Body: { "brandId": "<brand-id>" }
 ```
 
-## AI reply generation
+## AI integrations
 
-Powered by `claude-haiku-4-5-20251001`.
+AI providers are managed from `/ai-integrations`. Social Hub currently supports Gemini, Anthropic, OpenAI, Ollama, and Runware configuration. Provider credentials can be stored encrypted in Supabase, with Vercel environment variables retained as server-only fallbacks. A default text provider can be selected and each provider can be tested from the UI.
+
+The default Gemini model is currently `gemini-3.5-flash-lite` using the Gemini Interactions API.
+
+## AI reply generation
 
 1. Navigate to Comments and open an opportunity.
 2. Generate a reply.
