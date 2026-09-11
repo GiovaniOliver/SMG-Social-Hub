@@ -2,9 +2,12 @@ import fs from 'fs'
 import path from 'path'
 import type Anthropic from '@anthropic-ai/sdk'
 import {
+  getStoredDefaultProvider,
   getStoredIntegration,
   getStoredSecret,
   saveStoredIntegration,
+  setStoredDefaultProvider,
+  type DefaultAIProvider,
   type IntegrationProvider,
 } from './integration-store'
 
@@ -125,13 +128,14 @@ async function getOllamaBaseUrl(): Promise<string> {
 
 export async function getAIIntegrationStatus(): Promise<AIIntegrationStatus> {
   const legacy = getKeyStatus()
-  const [gemini, anthropic, openai, runware, ollama, models] = await Promise.all([
+  const [gemini, anthropic, openai, runware, ollama, models, storedDefaultProvider] = await Promise.all([
     getProviderSecret('gemini'),
     getProviderSecret('anthropic'),
     getProviderSecret('openai'),
     getProviderSecret('runware'),
     getStoredIntegration('ollama').catch(() => null),
     Promise.all((['gemini', 'anthropic', 'openai', 'ollama'] as AIProvider[]).map(getProviderModel)),
+    getStoredDefaultProvider().catch(() => null),
   ])
 
   return {
@@ -140,7 +144,7 @@ export async function getAIIntegrationStatus(): Promise<AIIntegrationStatus> {
     openai: Boolean(openai),
     runware: Boolean(runware),
     ollamaBaseUrl: ollama?.baseUrl || legacy.ollamaBaseUrl,
-    defaultProvider: legacy.defaultProvider,
+    defaultProvider: storedDefaultProvider || legacy.defaultProvider,
     models: {
       gemini: models[0],
       anthropic: models[1],
@@ -148,6 +152,10 @@ export async function getAIIntegrationStatus(): Promise<AIIntegrationStatus> {
       ollama: models[3],
     },
   }
+}
+
+export async function setAIIntegrationDefaultProvider(provider: DefaultAIProvider): Promise<void> {
+  await setStoredDefaultProvider(provider)
 }
 
 export async function saveAIIntegrationSettings(input: {
@@ -290,7 +298,8 @@ async function generateWithOllama(prompt: string, model: string, options: Genera
 }
 
 export async function generateText(prompt: string, options: GenerateTextOptions = {}): Promise<string> {
-  const provider = options.provider ?? getKeyStatus().defaultProvider
+  const storedDefaultProvider = await getStoredDefaultProvider().catch(() => null)
+  const provider = options.provider ?? storedDefaultProvider ?? getKeyStatus().defaultProvider
   const model = options.model ?? await getProviderModel(provider)
 
   switch (provider) {
