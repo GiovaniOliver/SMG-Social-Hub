@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { encrypt } from '@/lib/crypto'
+import { decrypt, encrypt } from '@/lib/crypto'
 import type { Platform } from '@/types'
 
 export type PublishingCapability = 'AUTOMATIC' | 'MANUAL' | 'READ_ONLY' | 'UNSUPPORTED'
@@ -35,6 +35,21 @@ export interface ProviderConnectionInput {
   refreshToken?: string | null
   expiresAt?: Date | null
   scopes?: string[]
+}
+
+export interface SocialAccountVerificationContext {
+  account: SocialAccountRow
+  connection: {
+    id: string
+    platform: Platform
+    accountId: string | null
+    accountLabel: string | null
+    accessToken: string
+    refreshToken: string | null
+    expiresAt: string | null
+    scopes: string[]
+    isActive: boolean
+  } | null
 }
 
 export interface SocialAccountInput {
@@ -240,4 +255,112 @@ export async function markAccountsDisconnectedForConnection(providerConnectionId
     })
     .eq('providerConnectionId', providerConnectionId)
   if (error) throw new Error(`[accounts:disconnect] ${error.message}`)
+}
+
+
+export async function getSocialAccountVerificationContext(
+  accountId: string
+): Promise<SocialAccountVerificationContext | null> {
+  const db = admin()
+  const { data: account, error: accountError } = await db
+    .from('social_hub_accounts')
+    .select('*')
+    .eq('id', accountId)
+    .eq('isActive', true)
+    .maybeSingle()
+
+  if (accountError) throw new Error(`[accounts:verify:account] ${accountError.message}`)
+  if (!account) return null
+
+  const typedAccount = account as SocialAccountRow
+  if (!typedAccount.providerConnectionId) {
+    return { account: typedAccount, connection: null }
+  }
+
+  const { data: connection, error: connectionError } = await db
+    .from('social_hub_platform_connections')
+    .select('id,platform,accountId,accountLabel,accessToken,refreshToken,expiresAt,scopes,isActive')
+    .eq('id', typedAccount.providerConnectionId)
+    .maybeSingle()
+
+  if (connectionError) throw new Error(`[accounts:verify:connection] ${connectionError.message}`)
+  if (!connection) return { account: typedAccount, connection: null }
+
+  let accessToken = ''
+  let refreshToken: string | null = null
+  try {
+    accessToken = decrypt(connection.accessToken)
+    refreshToken = connection.refreshToken ? decrypt(connection.refreshToken) : null
+  } catch {
+    throw new Error('Stored provider credentials could not be decrypted')
+  }
+
+  let scopes: string[] = []
+  if (Array.isArray(connection.scopes)) {
+    scopes = connection.scopes.filter((scope: unknown): scope is string => typeof scope === 'string')
+  } else if (typeof connection.scopes === 'string') {
+    try {
+      const parsed = JSON.parse(connection.scopes)
+      if (Array.isArray(parsed)) scopes = parsed.filter((scope): scope is string => typeof scope === 'string')
+    } catch {
+      scopes = connection.scopes.split(/[ ,]+/).filter(Boolean)
+    }
+  }
+
+  return {
+    account: typedAccount,
+    connection: {
+      id: connection.id,
+      platform: connection.platform as Platform,
+      accountId: connection.accountId ?? null,
+      accountLabel: connection.accountLabel ?? null,
+      accessToken,
+      refreshToken,
+      expiresAt: connection.expiresAt ?? null,
+      scopes,
+      isActive: connection.isActive !== false,
+    },
+  }
+}
+
+export async function recordSocialAccountVerification(input: {
+  accountId: string
+  status: ConnectionStatus
+  success: boolean
+  message: string
+}): Promise<void> {
+  const db = admin()
+  const { data: current, error: readError } = await db
+    .from('social_hub_accounts')
+    .select('metadata')
+    .eq('id', input.accountId)
+    .maybeSingle()
+
+  if (readError) throw new Error(`[accounts:verify:metadata] ${readError.message}`)
+
+  const now = new Date().toISOString()
+  const metadata =
+    current?.metadata && typeof current.metadata === 'object' && !Array.isArray(current.metadata)
+      ? (current.metadata as Record<string, unknown>)
+      : {}
+
+  const verification = {
+    lastAttemptAt: now,
+    lastResult: input.status,
+    lastMessage: input.message,
+  }
+
+  const payload: Record<string, unknown> = {
+    connectionStatus: input.status,
+    metadata: { ...metadata, verification },
+    updatedAt: now,
+  }
+  if (input.success) payload.lastVerifiedAt = now
+
+  const { error } = await db
+    .from('social_hub_accounts')
+    .update(payload)
+    .eq('id', input.accountId)
+
+  if (error) throw new Error(`[accounts:verify:update] ${error.message}`)
 }
