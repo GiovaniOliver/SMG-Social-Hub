@@ -450,11 +450,13 @@ async function transaction<T>(
 
 export const db = {
   ...adapters,
-  $transaction: transaction,
+  transaction,
 }
 
-// Compatibility alias only. No Prisma package/client/engine is used by this project.
-export const prisma = db
+export function isDatabaseUniqueConstraintError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? '')
+  return /duplicate key|unique constraint|23505/i.test(message)
+}
 
 export async function databaseHealthCheck(): Promise<void> {
   const { error } = await getSupabaseAdmin().from('social_hub_brands').select('id').limit(1)
