@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { PlatformIcon } from '@/components/platform-icons'
 import { PLATFORMS } from '@/types'
 import type { Platform } from '@/types'
@@ -134,10 +135,15 @@ export default function LibraryPage() {
               </div>
               <p className="text-sm text-slate-200 whitespace-pre-wrap">{item.content}</p>
               {item.imageUrl && (
-                <img
+                <Image
                   src={item.imageUrl}
                   alt="Generated visual"
-                  className="w-full max-w-xs rounded-lg border border-slate-700"
+                  width={640}
+                  height={360}
+                  sizes="(max-width: 640px) 100vw, 320px"
+                  unoptimized
+                  loader={({ src }) => src}
+                  className="w-full h-auto max-w-xs rounded-lg border border-slate-700"
                 />
               )}
               {item.videoUrl && (
