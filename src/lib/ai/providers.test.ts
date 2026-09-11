@@ -14,6 +14,28 @@ vi.mock('fs', () => ({
   writeFileSync,
 }))
 
+const {
+  getStoredDefaultProvider,
+  getStoredIntegration,
+  getStoredSecret,
+  saveStoredIntegration,
+  setStoredDefaultProvider,
+} = vi.hoisted(() => ({
+  getStoredDefaultProvider: vi.fn(),
+  getStoredIntegration: vi.fn(),
+  getStoredSecret: vi.fn(),
+  saveStoredIntegration: vi.fn(),
+  setStoredDefaultProvider: vi.fn(),
+}))
+
+vi.mock('./integration-store', () => ({
+  getStoredDefaultProvider,
+  getStoredIntegration,
+  getStoredSecret,
+  saveStoredIntegration,
+  setStoredDefaultProvider,
+}))
+
 // ── @anthropic-ai/sdk mock ──────────────────────────────────────────────────
 const { anthropicCreate } = vi.hoisted(() => ({ anthropicCreate: vi.fn() }))
 
@@ -44,6 +66,14 @@ beforeEach(() => {
   readFileSync.mockReset()
   writeFileSync.mockReset()
   anthropicCreate.mockReset()
+  getStoredDefaultProvider.mockReset()
+  getStoredIntegration.mockReset()
+  getStoredSecret.mockReset()
+  saveStoredIntegration.mockReset()
+  setStoredDefaultProvider.mockReset()
+  getStoredDefaultProvider.mockResolvedValue(null)
+  getStoredIntegration.mockResolvedValue(null)
+  getStoredSecret.mockResolvedValue('')
   process.env = { ...originalEnv }
   delete process.env.GEMINI_API_KEY
   delete process.env.ANTHROPIC_API_KEY
