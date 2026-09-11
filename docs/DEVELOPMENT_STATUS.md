@@ -225,6 +225,8 @@ After each provider is connected:
 
 ### 5. Production cleanup
 
+Automated validation now runs `npm test` on pull requests and pushes to `main`. The cleanup branch passed the full test suite before merge.
+
 After account connection paths are verified:
 
 - [x] remove remaining lint warnings,
@@ -260,7 +262,7 @@ The social account registry is intentionally the dependency for this later phase
 - PR #15 — social-provider readiness checks
 - PR #16 — AI provider tests + persistent default LLM
 - PR #17 — responsive dashboard shell + documentation consolidation
-- Production cleanup — warning cleanup, current Gemini test coverage, legacy SDK removal, and complete Prisma-reference cleanup
+- Production cleanup — warning cleanup, current Gemini test coverage, legacy SDK removal, complete Prisma-reference cleanup, and GitHub Actions test enforcement
 
 ## Documentation rules
 
