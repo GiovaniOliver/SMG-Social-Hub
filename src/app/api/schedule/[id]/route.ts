@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import { cancelPost } from '@/lib/scheduler'
 import type { ApiResponse, Platform, PostStatus } from '@/types'
 
@@ -98,7 +98,7 @@ export async function GET(
   { params }: RouteContext
 ): Promise<NextResponse> {
   const { id } = await params
-  const post = await prisma.scheduledPost.findUnique({
+  const post = await db.scheduledPost.findUnique({
     where: { id },
     include: { brand: { select: { name: true } } },
   })
@@ -121,7 +121,7 @@ export async function PATCH(
   { params }: RouteContext
 ): Promise<NextResponse> {
   const { id } = await params
-  const post = await prisma.scheduledPost.findUnique({
+  const post = await db.scheduledPost.findUnique({
     where: { id },
   })
 
@@ -160,7 +160,7 @@ export async function PATCH(
   if (parsed.data.scheduledAt !== undefined) updateData.scheduledAt = new Date(parsed.data.scheduledAt)
   if (parsed.data.notes !== undefined) updateData.notes = parsed.data.notes
 
-  const updated = await prisma.scheduledPost.update({
+  const updated = await db.scheduledPost.update({
     where: { id },
     data: updateData,
     include: { brand: { select: { name: true } } },
