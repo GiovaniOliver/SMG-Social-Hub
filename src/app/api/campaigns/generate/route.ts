@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import { getBrandById } from '@/lib/brands'
 import { generateCampaignContent } from '@/lib/campaigns/generate-campaign'
 
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     const { roadmap, pieces } = await generateCampaignContent({ brand, durationDays, piecesPerDay })
 
-    const campaign = await prisma.$transaction(async (tx) => {
+    const campaign = await db.transaction(async (tx) => {
       const created = await tx.campaign.create({
         data: {
           brandId,
