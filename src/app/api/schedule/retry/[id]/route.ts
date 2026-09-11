@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 import { processScheduledPosts } from '@/lib/scheduler'
 import type { ApiResponse } from '@/types'
 
@@ -17,7 +17,7 @@ export async function POST(
   { params }: RouteContext
 ): Promise<NextResponse> {
   const { id } = await params
-  const post = await prisma.scheduledPost.findUnique({
+  const post = await db.scheduledPost.findUnique({
     where: { id },
   })
 
@@ -34,7 +34,7 @@ export async function POST(
     return NextResponse.json(response, { status: 409 })
   }
 
-  await prisma.scheduledPost.update({
+  await db.scheduledPost.update({
     where: { id: id },
     data: {
       status: 'PENDING',
