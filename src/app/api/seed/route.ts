@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
 
 const SNAPREGISTER_VOICE = {
   tone: 'Helpful, practical, trustworthy',
@@ -37,7 +37,7 @@ const SNAPREGISTER_CONTEXT = {
 
 export async function POST() {
   try {
-    const existing = await prisma.brand.findUnique({
+    const existing = await db.brand.findUnique({
       where: { slug: 'snapregister' },
     })
 
@@ -52,7 +52,7 @@ export async function POST() {
       )
     }
 
-    const brand = await prisma.brand.create({
+    const brand = await db.brand.create({
       data: {
         name: 'SnapRegister',
         slug: 'snapregister',
