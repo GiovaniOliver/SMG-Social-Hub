@@ -1,7 +1,7 @@
 import { createHash } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
+import { db, isDatabaseUniqueConstraintError } from '@/lib/db'
 import type { ApiResponse } from '@/types'
 
 const DEFAULT_LIMIT = 20
@@ -22,15 +22,6 @@ function buildPostLevelDedupeKey(brandId: string, postUrl: string): string {
   return createHash('sha256')
     .update(`${brandId}\u0000${postUrl}\u0000post-level`)
     .digest('hex')
-}
-
-function isUniqueConstraintError(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: string }).code === 'P2002'
-  )
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -56,8 +47,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if (platform) where.platform = platform.toUpperCase()
 
     const [total, opportunities] = await Promise.all([
-      prisma.commentOpportunity.count({ where }),
-      prisma.commentOpportunity.findMany({
+      db.commentOpportunity.count({ where }),
+      db.commentOpportunity.findMany({
         where,
         include: { drafts: { orderBy: { createdAt: 'desc' } } },
         orderBy: { discoveredAt: 'desc' },
@@ -105,7 +96,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       isOwned,
     } = parsed.data
 
-    const opportunity = await prisma.commentOpportunity.create({
+    const opportunity = await db.commentOpportunity.create({
       data: {
         dedupeKey: buildPostLevelDedupeKey(brandId, postUrl),
         brandId,
@@ -127,7 +118,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
     return NextResponse.json(response, { status: 201 })
   } catch (error) {
-    if (isUniqueConstraintError(error)) {
+    if (isDatabaseUniqueConstraintError(error)) {
       const response: ApiResponse<never> = {
         success: false,
         error: 'This comment opportunity already exists',
