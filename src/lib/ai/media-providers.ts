@@ -1,4 +1,4 @@
-import { getKey } from './providers'
+import { getProviderSecret } from './providers'
 
 const RUNWARE_URL = 'https://api.runware.ai/v1'
 const DEFAULT_IMAGE_MODEL = 'runware:100@1'
@@ -36,9 +36,9 @@ interface RunwareTaskResult {
   [key: string]: unknown
 }
 
-function requireRunwareKey(): string {
-  const key = getKey('runware')
-  if (!key) throw new Error('Runware API key not configured. Go to Settings → API Keys.')
+async function requireRunwareKey(): Promise<string> {
+  const key = await getProviderSecret('runware')
+  if (!key) throw new Error('Runware API key not configured. Go to AI Integrations.')
   return key
 }
 
@@ -57,7 +57,7 @@ async function runwareRequest(apiKey: string, tasks: Record<string, unknown>[]):
 }
 
 export async function generateImage(prompt: string, options: GenerateImageOptions = {}): Promise<MediaResult> {
-  const apiKey = requireRunwareKey()
+  const apiKey = await requireRunwareKey()
   const data = await runwareRequest(apiKey, [
     {
       taskType: 'imageInference',
@@ -75,7 +75,7 @@ export async function generateImage(prompt: string, options: GenerateImageOption
 }
 
 export async function generateVideo(prompt: string, options: GenerateVideoOptions = {}): Promise<MediaResult> {
-  const apiKey = requireRunwareKey()
+  const apiKey = await requireRunwareKey()
   const id = crypto.randomUUID()
 
   await runwareRequest(apiKey, [

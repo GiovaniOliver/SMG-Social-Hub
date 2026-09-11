@@ -1,9 +1,15 @@
 import fs from 'fs'
 import path from 'path'
 import type Anthropic from '@anthropic-ai/sdk'
+import {
+  getStoredIntegration,
+  getStoredSecret,
+  saveStoredIntegration,
+  type IntegrationProvider,
+} from './integration-store'
 
-// Server-side key store — keys are never sent from the browser, only stored
-// and read here. Ported from BrandFlow's server.ts key-management functions.
+// Legacy local fallback for development/tests only. Production settings are stored
+// encrypted in Supabase via integration-store.ts.
 const KEYS_FILE = path.join(process.cwd(), '.provider-keys.json')
 
 export type AIProvider = 'gemini' | 'anthropic' | 'openai' | 'ollama'
@@ -27,13 +33,17 @@ export interface ProviderKeyStatus {
   defaultProvider: AIProvider
 }
 
+export interface AIIntegrationStatus extends ProviderKeyStatus {
+  models: Record<AIProvider, string>
+}
+
 export function loadKeys(): ProviderKeys {
   try {
     if (fs.existsSync(KEYS_FILE)) {
       return JSON.parse(fs.readFileSync(KEYS_FILE, 'utf-8')) as ProviderKeys
     }
   } catch {
-    // Corrupt or unreadable file — fall through to defaults.
+    // Development fallback only.
   }
   return {}
 }
@@ -63,9 +73,100 @@ export function getKeyStatus(): ProviderKeyStatus {
     anthropic: !!getKey('anthropic'),
     openai: !!getKey('openai'),
     runware: !!getKey('runware'),
-    ollamaBaseUrl: stored.ollamaBaseUrl || 'http://localhost:11434',
+    ollamaBaseUrl: stored.ollamaBaseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
     defaultProvider: stored.defaultProvider || 'gemini',
   }
+}
+
+const DEFAULT_MODEL: Record<AIProvider, string> = {
+  gemini: 'gemini-3.5-flash-lite',
+  anthropic: 'claude-haiku-4-5',
+  openai: 'gpt-4o',
+  ollama: 'llama3.3',
+}
+
+const PROVIDER_CATEGORY: Record<IntegrationProvider, 'llm' | 'media' | 'local'> = {
+  gemini: 'llm',
+  anthropic: 'llm',
+  openai: 'llm',
+  ollama: 'local',
+  runware: 'media',
+}
+
+export async function getProviderSecret(provider: KeyedProvider): Promise<string> {
+  try {
+    const stored = await getStoredSecret(provider)
+    if (stored) return stored
+  } catch {
+    // Fall back to env/local configuration if Supabase settings are unavailable.
+  }
+  return getKey(provider)
+}
+
+async function getProviderModel(provider: AIProvider): Promise<string> {
+  try {
+    const stored = await getStoredIntegration(provider)
+    if (stored?.defaultModel) return stored.defaultModel
+  } catch {
+    // Fall back to code defaults.
+  }
+  return DEFAULT_MODEL[provider]
+}
+
+async function getOllamaBaseUrl(): Promise<string> {
+  try {
+    const stored = await getStoredIntegration('ollama')
+    if (stored?.baseUrl) return stored.baseUrl
+  } catch {
+    // Fall back to development/env settings.
+  }
+  return getKeyStatus().ollamaBaseUrl
+}
+
+export async function getAIIntegrationStatus(): Promise<AIIntegrationStatus> {
+  const legacy = getKeyStatus()
+  const [gemini, anthropic, openai, runware, ollama, models] = await Promise.all([
+    getProviderSecret('gemini'),
+    getProviderSecret('anthropic'),
+    getProviderSecret('openai'),
+    getProviderSecret('runware'),
+    getStoredIntegration('ollama').catch(() => null),
+    Promise.all((['gemini', 'anthropic', 'openai', 'ollama'] as AIProvider[]).map(getProviderModel)),
+  ])
+
+  return {
+    gemini: Boolean(gemini),
+    anthropic: Boolean(anthropic),
+    openai: Boolean(openai),
+    runware: Boolean(runware),
+    ollamaBaseUrl: ollama?.baseUrl || legacy.ollamaBaseUrl,
+    defaultProvider: legacy.defaultProvider,
+    models: {
+      gemini: models[0],
+      anthropic: models[1],
+      openai: models[2],
+      ollama: models[3],
+    },
+  }
+}
+
+export async function saveAIIntegrationSettings(input: {
+  provider: IntegrationProvider
+  secret?: string
+  clearSecret?: boolean
+  defaultModel?: string | null
+  baseUrl?: string | null
+  enabled?: boolean
+}): Promise<void> {
+  await saveStoredIntegration({
+    provider: input.provider,
+    category: PROVIDER_CATEGORY[input.provider],
+    secret: input.secret,
+    clearSecret: input.clearSecret,
+    defaultModel: input.defaultModel,
+    baseUrl: input.baseUrl,
+    enabled: input.enabled,
+  })
 }
 
 export interface GenerateTextOptions {
@@ -77,36 +178,55 @@ export interface GenerateTextOptions {
   jsonMode?: boolean
 }
 
-const DEFAULT_MODEL: Record<AIProvider, string> = {
-  gemini: 'gemini-2.0-flash-lite',
-  anthropic: 'claude-haiku-4-5',
-  openai: 'gpt-4o',
-  ollama: 'llama3.3',
+function extractGeminiText(data: unknown): string {
+  if (!data || typeof data !== 'object') return ''
+  const payload = data as {
+    output_text?: string
+    steps?: Array<{ type?: string; content?: Array<{ type?: string; text?: string }> }>
+  }
+  if (typeof payload.output_text === 'string') return payload.output_text
+  return (payload.steps ?? [])
+    .filter((step) => step.type === 'model_output')
+    .flatMap((step) => step.content ?? [])
+    .filter((part) => part.type === 'text' && typeof part.text === 'string')
+    .map((part) => part.text as string)
+    .join('')
 }
 
 async function generateWithGemini(prompt: string, model: string, options: GenerateTextOptions): Promise<string> {
-  const apiKey = getKey('gemini')
-  if (!apiKey) throw new Error('Gemini API key not configured. Go to Settings → API Keys.')
+  const apiKey = await getProviderSecret('gemini')
+  if (!apiKey) throw new Error('Gemini API key not configured. Go to AI Integrations.')
 
-  const { GoogleGenerativeAI } = await import('@google/generative-ai')
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const genModel = genAI.getGenerativeModel({
+  const body: Record<string, unknown> = {
     model,
-    systemInstruction: options.systemPrompt,
-    generationConfig: {
-      temperature: options.temperature ?? 0.8,
-      maxOutputTokens: options.maxTokens ?? 1024,
-      ...(options.jsonMode ? { responseMimeType: 'application/json' } : {}),
+    input: prompt,
+    store: false,
+  }
+  if (options.systemPrompt) body.system_instruction = options.systemPrompt
+  if (options.jsonMode) {
+    body.response_format = { type: 'text', mime_type: 'application/json' }
+  }
+
+  const resp = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-goog-api-key': apiKey,
+      'Api-Revision': '2026-05-20',
     },
+    body: JSON.stringify(body),
   })
 
-  const result = await genModel.generateContent(prompt)
-  return result.response.text()
+  if (!resp.ok) throw new Error(`Gemini error ${resp.status}: ${await resp.text()}`)
+  const data = await resp.json()
+  const text = extractGeminiText(data)
+  if (!text) throw new Error('Gemini returned no text output')
+  return text
 }
 
 async function generateWithAnthropic(prompt: string, model: string, options: GenerateTextOptions): Promise<string> {
-  const apiKey = getKey('anthropic')
-  if (!apiKey) throw new Error('Anthropic API key not configured. Go to Settings → API Keys.')
+  const apiKey = await getProviderSecret('anthropic')
+  if (!apiKey) throw new Error('Anthropic API key not configured. Go to AI Integrations.')
 
   const { default: Anthropic } = await import('@anthropic-ai/sdk')
   const client = new Anthropic({ apiKey })
@@ -126,8 +246,8 @@ async function generateWithAnthropic(prompt: string, model: string, options: Gen
 }
 
 async function generateWithOpenAI(prompt: string, model: string, options: GenerateTextOptions): Promise<string> {
-  const apiKey = getKey('openai')
-  if (!apiKey) throw new Error('OpenAI API key not configured. Go to Settings → API Keys.')
+  const apiKey = await getProviderSecret('openai')
+  if (!apiKey) throw new Error('OpenAI API key not configured. Go to AI Integrations.')
 
   const messages: Array<{ role: string; content: string }> = []
   if (options.systemPrompt) messages.push({ role: 'system', content: options.systemPrompt })
@@ -148,8 +268,7 @@ async function generateWithOpenAI(prompt: string, model: string, options: Genera
 }
 
 async function generateWithOllama(prompt: string, model: string, options: GenerateTextOptions): Promise<string> {
-  const base = getKeyStatus().ollamaBaseUrl
-
+  const base = await getOllamaBaseUrl()
   const messages: Array<{ role: string; content: string }> = []
   if (options.systemPrompt) messages.push({ role: 'system', content: options.systemPrompt })
   messages.push({ role: 'user', content: prompt })
@@ -168,14 +287,9 @@ async function generateWithOllama(prompt: string, model: string, options: Genera
   return data.message?.content ?? ''
 }
 
-/**
- * Unified text-generation entry point across all four providers. Provider
- * defaults to the user's configured `defaultProvider` (Settings page) when
- * not specified explicitly.
- */
 export async function generateText(prompt: string, options: GenerateTextOptions = {}): Promise<string> {
   const provider = options.provider ?? getKeyStatus().defaultProvider
-  const model = options.model ?? DEFAULT_MODEL[provider]
+  const model = options.model ?? await getProviderModel(provider)
 
   switch (provider) {
     case 'gemini':
