@@ -41,7 +41,7 @@ export default function TrendsPage() {
   const [brands, setBrands] = useState<Brand[]>([])
   const [brandId, setBrandId] = useState('')
   const [items, setItems] = useState<TrendPost[]>([])
-  const [window, setWindow] = useState<(typeof WINDOWS)[number]>('7d')
+  const [trendWindow, setTrendWindow] = useState<(typeof WINDOWS)[number]>('7d')
   const [platform, setPlatform] = useState<(typeof PLATFORMS)[number]>('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -57,7 +57,7 @@ export default function TrendsPage() {
   async function load() {
     setLoading(true); setError(null)
     try {
-      const params = new URLSearchParams({ window, limit: '40' })
+      const params = new URLSearchParams({ window: trendWindow, limit: '40' })
       if (platform) params.set('platform', platform)
       const res = await fetch(`/api/trends?${params}`, { cache: 'no-store' })
       const json = await res.json()
@@ -69,7 +69,7 @@ export default function TrendsPage() {
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { void load() }, [window, platform])
+  useEffect(() => { void load() }, [trendWindow, platform])
 
   const selectedBrand = useMemo(() => brands.find(b => b.id === brandId), [brands, brandId])
 
@@ -105,7 +105,7 @@ export default function TrendsPage() {
         </label>
         <label className="text-xs text-slate-400">
           Window
-          <select value={window} onChange={e => setWindow(e.target.value as typeof window)} className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-sm text-white">
+          <select value={trendWindow} onChange={e => setTrendWindow(e.target.value as (typeof WINDOWS)[number])} className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-sm text-white">
             {WINDOWS.map(v => <option key={v} value={v}>{v}</option>)}
           </select>
         </label>
