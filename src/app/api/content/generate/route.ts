@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { generateContent, type GeneratedPost } from '@/lib/ai/content-generator'
+import { generateContent, type GeneratedPost, type ViralFormatBlueprint } from '@/lib/ai/content-generator'
 import { CONTENT_TYPES } from '@/lib/ai/content-types'
 import type { ContentType } from '@/lib/ai/content-types'
 import { getBrandById } from '@/lib/brands'
@@ -17,6 +17,16 @@ const schema = z.object({
   topic: z.string().max(500).optional().default(''),
   generateImage: z.boolean().optional().default(false),
   generateVideo: z.boolean().optional().default(false),
+  formatBlueprint: z.object({
+    hook_pattern: z.string().optional(),
+    hook_text_paraphrase: z.string().optional(),
+    structure_beats: z.array(z.string()).optional(),
+    pacing: z.string().optional(),
+    cta_style: z.string().optional(),
+    hashtag_strategy: z.string().optional(),
+    tone_markers: z.array(z.string()).optional(),
+    why_it_works: z.string().optional(),
+  }).optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -38,6 +48,7 @@ export async function POST(req: NextRequest) {
       topic,
       generateImage: wantImage,
       generateVideo: wantVideo,
+      formatBlueprint,
     } = parsed.data
 
     if (wantImage && wantVideo) {
@@ -53,7 +64,15 @@ export async function POST(req: NextRequest) {
     }
 
     const { voice, context } = brand
-    const results = await generateContent(platforms, brand.name, voice, context, contentType, topic)
+    const results = await generateContent(
+      platforms,
+      brand.name,
+      voice,
+      context,
+      contentType,
+      topic,
+      formatBlueprint as ViralFormatBlueprint | undefined
+    )
 
     let mediaUrl: string | undefined
     let visualPromptText: string | undefined

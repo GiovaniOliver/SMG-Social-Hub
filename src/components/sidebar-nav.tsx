@@ -6,6 +6,7 @@ import { useState } from 'react'
 import {
   LayoutDashboard,
   Sparkles,
+  Flame,
   Rocket,
   CalendarDays,
   Library,
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { href: '/', label: 'Overview', icon: LayoutDashboard },
   { href: '/accounts', label: 'Accounts', icon: UsersRound },
   { href: '/create', label: 'Content Lab', icon: Sparkles },
+  { href: '/trends', label: 'Viral / Trends', icon: Flame },
   { href: '/campaigns', label: 'Campaigns', icon: Rocket },
   { href: '/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/library', label: 'Library', icon: Library },

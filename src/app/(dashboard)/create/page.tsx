@@ -18,7 +18,7 @@ import { PLATFORMS, PLATFORM_LABELS } from '@/types'
 import type { Platform } from '@/types'
 import { CONTENT_TYPES } from '@/lib/ai/content-types'
 import type { ContentType } from '@/lib/ai/content-types'
-import type { GeneratedPost } from '@/lib/ai/content-generator'
+import type { GeneratedPost, ViralFormatBlueprint } from '@/lib/ai/content-generator'
 import clsx from 'clsx'
 
 // ---------- Types ----------
@@ -219,6 +219,8 @@ export default function CreatePage() {
   const [topic, setTopic] = useState('')
   const [wantImage, setWantImage] = useState(false)
   const [wantVideo, setWantVideo] = useState(false)
+  const [formatBlueprint, setFormatBlueprint] = useState<ViralFormatBlueprint | null>(null)
+  const [trendTitle, setTrendTitle] = useState('')
 
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -230,9 +232,24 @@ export default function CreatePage() {
       .then((json) => {
         const list: Brand[] = json.data ?? []
         setBrands(list)
-        if (list.length > 0) setBrandId(list[0].id)
+        const prefillBrand = sessionStorage.getItem('smg_prefill_brandId')
+        if (prefillBrand && list.some((b) => b.id === prefillBrand)) setBrandId(prefillBrand)
+        else if (list.length > 0) setBrandId(list[0].id)
       })
       .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const raw = sessionStorage.getItem('smg_prefill_trend_format')
+    const title = sessionStorage.getItem('smg_prefill_trend_title')
+    if (raw) {
+      try {
+        setFormatBlueprint(JSON.parse(raw) as ViralFormatBlueprint)
+        setTrendTitle(title || 'Viral format')
+      } catch {
+        setFormatBlueprint(null)
+      }
+    }
   }, [])
 
   function togglePlatform(p: Platform) {
@@ -274,6 +291,7 @@ export default function CreatePage() {
           topic,
           generateImage: wantImage,
           generateVideo: wantVideo,
+          formatBlueprint: formatBlueprint ?? undefined,
         }),
       })
       const json = await res.json() as { success: boolean; data?: GeneratedPost[]; error?: string }
@@ -309,6 +327,30 @@ export default function CreatePage() {
           AI-generated, platform-adapted post copy based on your brand voice.
         </p>
       </div>
+
+      {formatBlueprint && (
+        <div className="rounded-xl border border-indigo-700 bg-indigo-950/40 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-400">Viral format loaded</p>
+            <p className="mt-1 text-sm font-medium text-white">{trendTitle || 'Selected viral format'}</p>
+            <p className="mt-1 text-xs text-slate-400">
+              Content Lab will reuse the hook, pacing, beat structure, and CTA style while keeping the wording and substance original to this brand.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setFormatBlueprint(null)
+              setTrendTitle('')
+              sessionStorage.removeItem('smg_prefill_trend_format')
+              sessionStorage.removeItem('smg_prefill_trend_title')
+            }}
+            className="btn-secondary text-xs"
+          >
+            Clear format
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* ===== LEFT — Controls ===== */}
