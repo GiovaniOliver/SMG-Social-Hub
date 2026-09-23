@@ -5,6 +5,17 @@ import { CONTENT_TYPES } from './content-types'
 import type { ContentType } from './content-types'
 import { generateText } from './providers'
 
+export interface ViralFormatBlueprint {
+  hook_pattern?: string
+  hook_text_paraphrase?: string
+  structure_beats?: string[]
+  pacing?: string
+  cta_style?: string
+  hashtag_strategy?: string
+  tone_markers?: string[]
+  why_it_works?: string
+}
+
 const PLATFORM_CHAR_LIMITS: Record<Platform, number> = {
   TWITTER: 280,
   INSTAGRAM: 2200,
@@ -40,6 +51,7 @@ function buildSystemPrompt(
   context: BrandContext,
   platform: Platform,
   contentType: ContentType,
+  formatBlueprint?: ViralFormatBlueprint,
 ): string {
   const charLimit = PLATFORM_CHAR_LIMITS[platform]
   const avoid = voice.avoid.length > 0 ? voice.avoid.join(', ') : 'nothing specific'
@@ -47,6 +59,19 @@ function buildSystemPrompt(
   const messages = context.keyMessages.length > 0
     ? context.keyMessages.map((m, i) => `${i + 1}. ${m}`).join('\n')
     : 'None.'
+  const formatBlock = formatBlueprint
+    ? `
+
+VIRAL FORMAT BLUEPRINT:
+- Hook pattern: ${formatBlueprint.hook_pattern ?? 'unspecified'}
+- Hook behavior: ${formatBlueprint.hook_text_paraphrase ?? 'unspecified'}
+- Structure beats: ${(formatBlueprint.structure_beats ?? []).join(' -> ') || 'unspecified'}
+- Pacing: ${formatBlueprint.pacing ?? 'unspecified'}
+- CTA style: ${formatBlueprint.cta_style ?? 'unspecified'}
+- Hashtag strategy: ${formatBlueprint.hashtag_strategy ?? 'unspecified'}
+- Tone markers: ${(formatBlueprint.tone_markers ?? []).join(', ') || 'unspecified'}
+Use the structural shape only. Do not copy wording, claims, names, or subject matter from the source post.`
+    : ''
 
   return `You are a social media content writer for ${brandName}.
 
@@ -64,7 +89,7 @@ PLATFORM STYLE: ${PLATFORM_STYLE_NOTES[platform]}
 CHARACTER LIMIT: ${charLimit} characters HARD MAX. Target 80% of the limit.
 
 CONTENT TYPE: ${CONTENT_TYPES[contentType]}
-INSTRUCTION: ${CONTENT_TYPE_INSTRUCTIONS[contentType]}
+INSTRUCTION: ${CONTENT_TYPE_INSTRUCTIONS[contentType]}${formatBlock}
 
 RULES:
 1. Write specifically for this platform — do NOT use generic copy.
@@ -121,9 +146,10 @@ async function generateForPlatform(
   context: BrandContext,
   contentType: ContentType,
   topic: string,
+  formatBlueprint?: ViralFormatBlueprint,
 ): Promise<GeneratedPost> {
   const charLimit = PLATFORM_CHAR_LIMITS[platform]
-  const systemPrompt = buildSystemPrompt(brandName, voice, context, platform, contentType)
+  const systemPrompt = buildSystemPrompt(brandName, voice, context, platform, contentType, formatBlueprint)
 
   const userPrompt = topic.trim()
     ? `Topic/Prompt: ${topic.trim()}`
@@ -155,9 +181,10 @@ export async function generateContent(
   context: BrandContext,
   contentType: ContentType,
   topic: string,
+  formatBlueprint?: ViralFormatBlueprint,
 ): Promise<GeneratedPost[]> {
   const results = await Promise.allSettled(
-    platforms.map((p) => generateForPlatform(p, brandName, voice, context, contentType, topic))
+    platforms.map((p) => generateForPlatform(p, brandName, voice, context, contentType, topic, formatBlueprint))
   )
 
   return results.map((r, i) => {
